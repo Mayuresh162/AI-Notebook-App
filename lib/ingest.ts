@@ -1,6 +1,6 @@
 import { chunkText } from "./chunk";
 import { getEmbedding } from "./embeddings";
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 
 export async function ingestDocument(
   text: string,
@@ -8,6 +8,7 @@ export async function ingestDocument(
   metadata: Record<string, any>,
 ) {
   const chunks = chunkText(text);
+  const supabase = getSupabase();
 
   for (const chunk of chunks) {
     const embedding = await getEmbedding(chunk);

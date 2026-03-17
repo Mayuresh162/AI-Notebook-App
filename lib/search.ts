@@ -1,10 +1,11 @@
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 
 export async function searchDocuments(
   embedding: number[],
   source?: string,
   matchCount = 5,
 ) {
+  const supabase = getSupabase();
   const { data, error } = await supabase.rpc("match_documents", {
     query_embedding: embedding,
     match_count: matchCount,
