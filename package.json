@@ -21,7 +21,7 @@
     "lucide-react": "^0.577.0",
     "next": "16.1.6",
     "openai": "^6.29.0",
-    "pdf-parse-new": "^2.0.0",
+    "pdf-parse": "^2.4.5",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
