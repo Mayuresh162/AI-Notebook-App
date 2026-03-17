@@ -6,6 +6,14 @@ export async function searchDocuments(
   matchCount = 5,
 ) {
   const supabase = getSupabase();
+
+  if (!supabase) {
+    return Response.json({
+      sources: [],
+      error: "Supabase not configured",
+    });
+  }
+
   const { data, error } = await supabase.rpc("match_documents", {
     query_embedding: embedding,
     match_count: matchCount,
