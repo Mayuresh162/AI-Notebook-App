@@ -45,7 +45,7 @@ export default function Sidebar() {
     async function fetchSources() {
       const res = await fetch("/api/sources");
       const data = await res.json();
-      setSources(data);
+      setSources(data.sources || []);
     }
 
     fetchSources();
