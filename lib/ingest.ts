@@ -10,6 +10,13 @@ export async function ingestDocument(
   const chunks = chunkText(text);
   const supabase = getSupabase();
 
+  if (!supabase) {
+    return Response.json({
+      sources: [],
+      error: "Supabase not configured",
+    });
+  }
+
   for (const chunk of chunks) {
     const embedding = await getEmbedding(chunk);
 
