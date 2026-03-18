@@ -14,7 +14,7 @@ export default function ChatLayout() {
     if (typeof window === "undefined") return [];
 
     try {
-      const stored = localStorage.getItem("messages");
+      const stored = localStorage.getItem("chat_messages");
       return stored ? JSON.parse(stored) : [];
     } catch {
       return [];
@@ -111,7 +111,7 @@ export default function ChatLayout() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
+  }, [messages]);
 
   return (
     <div className="flex-1 flex flex-col bg-card overflow-hidden">

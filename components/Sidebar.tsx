@@ -30,7 +30,11 @@ export default function Sidebar() {
 
     if (!url) return;
 
-    await axios.post("/api/url", { url });
+    const isYoutube = url.includes("youtube.com") || url.includes("youtu.be");
+
+    const endpoint = isYoutube ? "/api/youtube" : "/api/url";
+
+    await axios.post(endpoint, { url });
   }
 
   async function pasteText() {
