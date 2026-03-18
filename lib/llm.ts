@@ -13,6 +13,18 @@ ${question}
 Answer:
 `;
 
+  // const res = await fetch("http://localhost:11434/api/generate", {
+  //   method: "POST",
+  //   headers: {
+  //     "Content-Type": "application/json",
+  //   },
+  //   body: JSON.stringify({
+  //     model: "llama3",
+  //     prompt,
+  //     stream: true,
+  //   }),
+  // });
+
   const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -20,7 +32,7 @@ Answer:
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "llama3-8b-8192",
+      model: process.env.GROQ_MODEL || "llama-3.1-8b-instant",
       messages: [
         { role: "system", content: "You are a helpful assistant." },
         { role: "user", content: prompt },
@@ -28,6 +40,18 @@ Answer:
       stream: true,
     }),
   });
+
+  // ✅ Handle API errors
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("Groq API error:", text);
+    throw new Error("Failed to fetch response from Groq");
+  }
+
+  // ✅ Ensure stream exists
+  if (!res.body) {
+    throw new Error("No response body from Groq");
+  }
 
   return res.body;
 }

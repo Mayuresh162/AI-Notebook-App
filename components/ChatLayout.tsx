@@ -11,20 +11,17 @@ import { Button } from "@/components/ui/button";
 export default function ChatLayout() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [messages, setMessages] = useState<any[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("chat_messages");
-      return saved ? JSON.parse(saved) : [];
+    if (typeof window === "undefined") return [];
+
+    try {
+      const stored = localStorage.getItem("messages");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
     }
-    return [];
   });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [sources, setSources] = useState<any[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("chat_sources");
-      return saved ? JSON.parse(saved) : [];
-    }
-    return [];
-  });
+  const [sources, setSources] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -105,18 +102,16 @@ export default function ChatLayout() {
     }
 
     setLoading(false);
+
+    setMessages((prev) => {
+      localStorage.setItem("chat_messages", JSON.stringify(prev));
+      return prev;
+    });
   }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    if (messages.length > 0) {
-      localStorage.setItem("chat_messages", JSON.stringify(messages));
-    }
-  }, [messages]);
-
-  useEffect(() => {
-    localStorage.setItem("chat_sources", JSON.stringify(sources));
-  }, [sources]);
+  }, []);
 
   return (
     <div className="flex-1 flex flex-col bg-card overflow-hidden">
