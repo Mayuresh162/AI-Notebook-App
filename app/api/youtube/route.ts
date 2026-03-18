@@ -13,7 +13,16 @@ export async function POST(req: Request) {
     url,
   });
 
+  let finalChunks;
+
+  if (ingestResult instanceof Response) {
+    const data = await ingestResult.json();
+    finalChunks = data.chunks;
+  } else {
+    finalChunks = ingestResult.chunks;
+  }
+
   return Response.json({
-    chunks: ingestResult.chunks,
+    chunks: finalChunks,
   });
 }
