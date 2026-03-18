@@ -1,54 +1,54 @@
 # 🧠 AI Notebook (Chat with Your Sources)
 
-An AI-powered research assistant that allows you to chat with your own data sources like PDFs and YouTube videos using Retrieval-Augmented Generation (RAG).
-
----
+An AI-powered research assistant that lets you chat with your own data — including PDFs, web articles, YouTube videos, and raw text — using a Retrieval-Augmented Generation (RAG) pipeline.
 
 ## 🚀 Features
 
 - 📄 Upload PDFs and extract content
-- 🎥 Add YouTube links and process transcripts
-- 💬 Chat with your sources using AI
+- 🌐 Add web URLs and parse articles
+- 🎥 Add YouTube videos and process transcripts
+- ✍️ Paste raw text for quick analysis
+- 💬 Chat with all your sources using AI
 - ⚡ Real-time streaming responses
 - 🔎 Semantic search using embeddings
-- 📚 Source-based answers with citations
+- 📚 Source-grounded answers with citations
+- 🔄 Auto-refresh sources after ingestion
+- 🔔 Toast notifications for success/error states (Sonner)
 - 💾 Chat history persistence (localStorage)
-- 🎨 Clean UI with modern UX
-
----
+- 🎨 Clean, modern UI
 
 ## 🏗️ Tech Stack
 
 ### Frontend
+
 - Next.js (App Router)
 - React
 - Tailwind CSS
 - shadcn/ui
+- Sonner (toast notifications)
 
 ### Backend
+
 - Next.js API Routes
-- Supabase (Vector DB + Storage)
-
-### AI / ML
-- Embeddings (OpenAI / compatible)
-- LLM (Ollama / OpenAI / Groq)
+- Supabase (Postgres + pgvector)
+- AI / ML
+- Embeddings (OpenAI)
+- LLM (Groq / OpenAI / Ollama)
 - RAG (Retrieval-Augmented Generation)
-
----
 
 ## 🧠 Architecture Overview
 
-1. Upload PDF / YouTube → Extract text
-2. Text → Split into chunks
-3. Chunks → Convert into embeddings
-4. Store embeddings in Supabase
-5. User asks question
-6. Similar chunks retrieved via vector search
-7. Context + question sent to LLM
-8. Streaming response returned
-9. Sources attached for citations
-
----
+1. Upload source (PDF / URL / YouTube / Text)
+2. Extract text using appropriate loader
+3. Split text into chunks
+4. Generate embeddings for each chunk
+5. Store embeddings in Supabase (pgvector)
+6. User asks a question
+7. Perform similarity search on embeddings
+8. Retrieve relevant chunks (context)
+9. Send context + query to LLM
+10. Stream response back to UI
+11. Attach sources for grounded answers
 
 ## ⚙️ Setup Instructions
 
@@ -72,9 +72,8 @@ Create `.env.local`:
 NEXT_PUBLIC_SUPABASE_URL=your_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key
 
-# Choose ONE:
+# Choose ONE (or more):
 OPENAI_API_KEY=your_key
-# OR
 GROQ_API_KEY=your_key
 ```
 
@@ -91,6 +90,8 @@ Example schema:
 | embedding | vector |
 | metadata | jsonb |
 
+👉 Important: Ensure embedding dimensions match your model (e.g. 1536 for OpenAI)
+
 ### 5. Run locally
 
 ```bash
@@ -99,10 +100,11 @@ npm run dev
 
 ## 🧪 Usage
 
-- Upload a PDF or add YouTube link
-- Wait for processing
+- Upload a PDF, paste a URL, YouTube link, or raw text
+- Wait for processing (toast notifications shown)
+- Sources auto-update in UI
 - Ask questions in chat
-- Get AI answers with citations
+- Get AI-generated answers grounded in your data
 
 ## 🌐 Deployment
 
@@ -117,17 +119,21 @@ Steps:
 
 ## ⚠️ Notes
 
-- Ollama (local) will NOT work in production
-- Use OpenAI or Groq for deployed apps
-- Streaming works using fetch (not axios)
+- Ollama (local models) won’t work in production (Vercel)
+- Use OpenAI or Groq for deployed environments
+- Streaming responses use native fetch (ReadableStream)
+- Ensure embedding model consistency to avoid dimension mismatch errors
 
 ## 🔮 Future Improvements
 
 - Markdown rendering
-- Highlight source citations
-- Multi-document grouping
-- Authentication
-- Cloud storage for PDFs
+- Highlight exact source snippets
+- Better citation UI
+- Multi-document collections
+- Authentication (user-specific data)
+- File storage (S3 / Supabase Storage)
+- Rate limiting + caching
+- Test Cases
 
 ## ⭐ If you like this project
 
