@@ -13,7 +13,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("documents")
     .select("metadata")
-    .limit(50);
+    .limit(100);
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });
