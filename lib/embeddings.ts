@@ -1,17 +1,34 @@
-import { pipeline } from "@xenova/transformers";
+export async function getEmbedding(text: string): Promise<number[]> {
+  try {
+    const res = await fetch(
+      "https://api-inference.huggingface.co/pipeline/feature-extraction/BAAI/bge-small-en",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.HF_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          inputs: text,
+          options: { wait_for_model: true }, // ✅ important for cold start
+        }),
+      },
+    );
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let extractor: any;
+    if (!res.ok) {
+      const err = await res.text();
+      console.error("HF API error:", err);
+      throw new Error("Failed to fetch embeddings");
+    }
 
-export async function getEmbedding(text: string) {
-  if (!extractor) {
-    extractor = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2");
+    const data = await res.json();
+
+    // ⚠️ HF returns nested array sometimes
+    const embedding = Array.isArray(data[0]) ? data[0] : data;
+
+    return embedding;
+  } catch (err) {
+    console.error("Embedding error:", err);
+    throw new Error("Embedding generation failed");
   }
-
-  const output = await extractor(text, {
-    pooling: "mean",
-    normalize: true,
-  });
-
-  return Array.from(output.data) as number[];
 }
