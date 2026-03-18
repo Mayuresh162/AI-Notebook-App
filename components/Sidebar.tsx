@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 
 export default function Sidebar() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -22,7 +23,22 @@ export default function Sidebar() {
     const formData = new FormData();
     formData.append("file", file);
 
-    await axios.post("/api/upload", formData);
+    const loading = toast.loading("Processing content...");
+
+    try {
+      await axios.post("/api/upload", formData);
+
+      toast.success("Upload successful 🎉", {
+        description: "PDF indexed successfully",
+        id: loading,
+      });
+      await fetchSources();
+    } catch (err) {
+      toast.error("Upload failed ❌", {
+        description: "Something went wrong.",
+        id: loading,
+      });
+    }
   }
 
   async function addURL() {
@@ -34,7 +50,25 @@ export default function Sidebar() {
 
     const endpoint = isYoutube ? "/api/youtube" : "/api/url";
 
-    await axios.post(endpoint, { url });
+    const loading = toast.loading("Processing content...");
+
+    try {
+      await axios.post(endpoint, { url });
+
+      toast.success("Upload successful 🎉", {
+        description: isYoutube
+          ? "YouTube video indexed successfully"
+          : "Article indexed successfully",
+        id: loading,
+      });
+
+      await fetchSources();
+    } catch (err) {
+      toast.error("Upload failed ❌", {
+        description: "Something went wrong.",
+        id: loading,
+      });
+    }
   }
 
   async function pasteText() {
@@ -42,17 +76,37 @@ export default function Sidebar() {
 
     if (!text) return;
 
-    await axios.post("/api/text", { text });
+    const loading = toast.loading("Processing content...");
+
+    try {
+      await axios.post("/api/text", { text });
+
+      toast.success("Upload successful 🎉", {
+        description: "Text indexed successfully",
+        id: loading,
+      });
+
+      await fetchSources();
+    } catch (err) {
+      toast.error("Upload failed ❌", {
+        description: "Something went wrong.",
+        id: loading,
+      });
+    }
   }
 
-  useEffect(() => {
-    async function fetchSources() {
-      const res = await fetch("/api/sources");
-      const data = await res.json();
-      setSources(data);
-    }
+  const fetchSources = async () => {
+    const res = await fetch("/api/sources");
+    const data = await res.json();
+    setSources(data);
+  };
 
-    fetchSources();
+  useEffect(() => {
+    const load = async () => {
+      await fetchSources();
+    };
+
+    load();
   }, []);
 
   return (

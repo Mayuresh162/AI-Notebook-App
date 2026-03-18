@@ -124,6 +124,7 @@ export default function ChatLayout() {
           size="sm"
           onClick={() => {
             setMessages([]);
+            setSources([]);
             localStorage.removeItem("chat_messages");
           }}
           className="cursor-pointer"
