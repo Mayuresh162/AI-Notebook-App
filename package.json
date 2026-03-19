@@ -9,13 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@mozilla/readability": "^0.6.0",
     "@supabase/supabase-js": "^2.99.1",
     "axios": "^1.13.6",
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "jsdom": "^29.0.0",
     "llamaindex": "^0.12.1",
     "lucide-react": "^0.577.0",
     "next": "16.1.6",

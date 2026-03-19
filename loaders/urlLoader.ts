@@ -1,20 +1,26 @@
-import { JSDOM } from "jsdom";
-import { Readability } from "@mozilla/readability";
+import * as cheerio from "cheerio";
 
 export async function loadURL(url: string) {
-  const res = await fetch(url);
-  const html = await res.text();
+  try {
+    const res = await fetch(url);
+    const html = await res.text();
 
-  const dom = new JSDOM(html, { url });
+    const $ = cheerio.load(html);
 
-  const reader = new Readability(dom.window.document);
-  const article = reader.parse();
+    // remove unwanted tags
+    $("script, style, noscript").remove();
 
-  if (!article || !article.textContent) {
-    throw new Error("Unable to extract article content");
+    const text = $("body").text();
+
+    if (!text || !text.trim()) {
+      throw new Error("Unable to extract content");
+    }
+
+    return {
+      text: text.replace(/\s+/g, " ").trim(),
+    };
+  } catch (error) {
+    console.error("URL parse error:", error);
+    throw new Error("Failed to extract URL content");
   }
-
-  return {
-    text: article.textContent,
-  };
 }
