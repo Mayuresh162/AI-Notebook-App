@@ -15,15 +15,25 @@ export default function Sidebar() {
     fileRef.current?.click();
   }
 
+  function onSuccessUpload() {
+    window.dispatchEvent(new Event("close-sidebar"));
+  }
+
   async function uploadPDF(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
 
     if (!file) return;
 
+    if (sources.length >= 5) {
+      toast.error("Maximum 5 sources per thread");
+      return;
+    }
+
     const formData = new FormData();
     formData.append("file", file);
 
     const loading = toast.loading("Processing content...");
+    onSuccessUpload();
 
     try {
       await axios.post("/api/upload", formData);
@@ -46,11 +56,17 @@ export default function Sidebar() {
 
     if (!url) return;
 
+    if (sources.length >= 5) {
+      toast.error("Maximum 5 sources per thread");
+      return;
+    }
+
     const isYoutube = url.includes("youtube.com") || url.includes("youtu.be");
 
     const endpoint = isYoutube ? "/api/youtube" : "/api/url";
 
     const loading = toast.loading("Processing content...");
+    onSuccessUpload();
 
     try {
       await axios.post(endpoint, { url });
@@ -76,7 +92,13 @@ export default function Sidebar() {
 
     if (!text) return;
 
+    if (sources.length >= 5) {
+      toast.error("Maximum 5 sources per thread");
+      return;
+    }
+
     const loading = toast.loading("Processing content...");
+    onSuccessUpload();
 
     try {
       await axios.post("/api/text", { text });
@@ -110,15 +132,20 @@ export default function Sidebar() {
   }, []);
 
   return (
-    <div className="w-[300px] bg-[#1a1a1a] border-r border-border flex flex-col justify-between p-6 relative">
+    <div className="w-full md:w-[300px] h-full bg-[#111111] flex flex-col justify-between px-5 py-5 border-r border-white/5">
       <div>
-        <h1 className="text-lg font-semibold">Notebook</h1>
-        <p className="text-sm text-muted-foreground">CHAT WITH YOUR SOURCES</p>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Notebook
+        </h1>
+
+        <p className="text-sm text-zinc-400 mt-1 uppercase tracking-[0.18em]">
+          Chat with your sources
+        </p>
 
         <div className="mt-16 text-center text-sm text-muted-foreground">
           {sources.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Add sources below to start your research
+            <p className="text-zinc-400 text-center leading-7 text-sm">
+              Add sources below to build your research workspace
             </p>
           ) : (
             sources.map((s, i) => {
@@ -142,7 +169,7 @@ export default function Sidebar() {
       <div className="space-y-4">
         <Separator className="bg-[#1a1a1a] border-t border-border" />
 
-        <div className="space-y-3">
+        <div className="space-y-3 flex flex-col">
           <input
             type="file"
             accept="application/pdf"
@@ -152,7 +179,14 @@ export default function Sidebar() {
           />
           <Button
             variant="outline"
-            className="w-full justify-start cursor-pointer"
+            className="
+              h-12 rounded-2xl
+              bg-[#151515]
+              border border-white/10
+              hover:bg-[#1d1d1d]
+              transition-all
+              active:scale-[0.98]
+            "
             onClick={handleClick}
           >
             📄 Add PDF
@@ -160,7 +194,14 @@ export default function Sidebar() {
 
           <Button
             variant="outline"
-            className="w-full justify-start cursor-pointer"
+            className="
+              h-12 rounded-2xl
+              bg-[#151515]
+              border border-white/10
+              hover:bg-[#1d1d1d]
+              transition-all
+              active:scale-[0.98]
+            "
             onClick={addURL}
           >
             🔗 Add URL / YouTube
@@ -168,7 +209,14 @@ export default function Sidebar() {
 
           <Button
             variant="outline"
-            className="w-full justify-start cursor-pointer"
+            className="
+              h-12 rounded-2xl
+              bg-[#151515]
+              border border-white/10
+              hover:bg-[#1d1d1d]
+              transition-all
+              active:scale-[0.98]
+            "
             onClick={pasteText}
           >
             📝 Paste text

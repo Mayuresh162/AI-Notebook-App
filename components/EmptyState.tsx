@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 
 export default function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center space-y-6">
+    <div className="flex flex-col items-center justify-center h-full text-center space-y-6 mt-2">
       <div className="text-5xl">📚</div>
 
       <div>
@@ -14,7 +14,7 @@ export default function EmptyState() {
         </p>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2">
         <Button variant="outline">Summarize all sources</Button>
         <Button variant="outline">Key themes</Button>
         <Button variant="outline">Main arguments</Button>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ArrowUp, Loader2 } from "lucide-react";
 
 export default function ChatInput({
   ask,
@@ -13,40 +14,64 @@ export default function ChatInput({
 }) {
   const [question, setQuestion] = useState("");
 
-  function handleAsk() {
-    if (!question.trim()) return;
+  async function handleAsk() {
+    const value = question.trim();
 
-    ask(question);
+    if (!value || loading) return;
 
     setQuestion("");
+
+    await ask(value);
   }
 
   return (
-    <div className="border-t border-border bg-card pt-4 p-4">
-      <div className="flex gap-3">
+    <div className="md:static fixed bottom-0 left-0 right-0 z-40 border-t border-white/5 bg-[#0a0a0a]/95 backdrop-blur-xl p-3 md:p-4 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]">
+      <div className="max-w-4xl mx-auto flex items-center gap-3">
+
         <Input
-          className="bg-input border-border"
-          placeholder="Ask anything about your sources..."
           value={question}
-          onChange={(e) => setQuestion(e.target.value)}
           disabled={loading}
+          placeholder="Ask anything about your sources..."
+          onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
-              if (loading) return;
               handleAsk();
             }
           }}
+          className="
+            h-12 md:h-13 flex-1
+            rounded-2xl
+            border border-white/10
+            bg-[#151515]
+            px-4
+            text-sm text-white
+            placeholder:text-zinc-500
+            focus-visible:ring-1
+            focus-visible:ring-white/20
+          "
         />
 
         <Button
-          variant="secondary"
-          className="cursor-pointer"
           onClick={handleAsk}
-          disabled={loading}
+          disabled={loading || !question.trim()}
+          className="
+            h-12 w-12 shrink-0
+            rounded-2xl
+            bg-white text-black
+            hover:bg-zinc-200
+            active:scale-95
+            transition-all
+            disabled:opacity-50
+          "
         >
-          ➤
+          {loading ? (
+            <Loader2 size={18} className="animate-spin" />
+          ) : (
+            <ArrowUp size={18} />
+          )}
         </Button>
+
       </div>
     </div>
   );

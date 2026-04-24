@@ -114,43 +114,21 @@ export default function ChatLayout() {
   }, [messages]);
 
   return (
-    <div className="flex-1 flex flex-col bg-card overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-card shrink-0">
-        <h2 className="font-medium">Research chat</h2>
-        <Badge variant="secondary">{sources.length} sources</Badge>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            setMessages([]);
-            setSources([]);
-            localStorage.removeItem("chat_messages");
-          }}
-          className="cursor-pointer"
-        >
-          Clear
-        </Button>
-      </div>
+  <div className="flex flex-col h-full flex-1 overflow-hidden">
 
-      {/* Scroll ONLY here */}
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full px-6">
-          {messages.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <>
-              <ChatMessages messages={messages} loading={loading} />
-              <div ref={bottomRef} />
-            </>
-          )}
-        </ScrollArea>
-      </div>
-
-      {/* Input fixed at bottom */}
-      <div className="shrink-0">
-        <ChatInput ask={ask} loading={loading} />
-      </div>
+    {/* ONLY THIS SCROLLS */}
+    <div className="flex-1 min-h-0 overflow-y-auto">
+      <ChatMessages
+        messages={messages}
+        loading={loading}
+      />
     </div>
-  );
+
+    {/* Sticky Input */}
+    <div className="shrink-0">
+      <ChatInput ask={ask} loading={loading} />
+    </div>
+
+  </div>
+);
 }
