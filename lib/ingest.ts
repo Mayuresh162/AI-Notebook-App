@@ -6,6 +6,7 @@ export async function ingestDocument(
   text: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata: Record<string, any>,
+  userId: string
 ) {
   const chunks = chunkText(text);
   const supabase = getSupabase();
@@ -21,9 +22,11 @@ export async function ingestDocument(
     const embedding = await getEmbedding(chunk);
 
     await supabase.from("documents").insert({
+      user_id: userId,
       content: chunk,
       metadata,
       embedding,
+      env: process.env.NODE_ENV === "development" ? "dev" : "prod",
     });
   }
 

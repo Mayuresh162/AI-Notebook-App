@@ -2,8 +2,9 @@ import { getSupabase } from "./supabase";
 
 export async function searchDocuments(
   embedding: number[],
+  userId: string,
   source?: string,
-  matchCount = 5,
+  matchCount = 8,
 ) {
   const supabase = getSupabase();
 
@@ -18,6 +19,8 @@ export async function searchDocuments(
     query_embedding: embedding,
     match_count: matchCount,
     filter_source: source ?? null,
+    filter_user_id: userId,
+    filter_env: process.env.NODE_ENV === "development" ? "dev" : "prod",
   });
 
   if (error) throw error;

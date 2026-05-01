@@ -1,24 +1,61 @@
 import { getEmbedding } from "@/lib/embeddings";
 import { searchDocuments } from "@/lib/search";
 import { generateAnswerStream } from "@/lib/llm";
+import { detectMode } from "@/lib/router";
+import { requireUser } from "@/lib/supabase-server";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const { question } = await req.json();
+  const auth = await requireUser();
+
+  if (auth.error) return auth.error;
+
+  const { user } = auth;
+  const { question, memory = [] } = await req.json();
 
   const queryEmbedding = await getEmbedding(question);
 
-  const rawMatches = await searchDocuments(queryEmbedding);
+  const rawMatches = await searchDocuments(queryEmbedding, user.id);
 
   const matches = Array.isArray(rawMatches)
     ? rawMatches
     : rawMatches?.data || rawMatches?.matches || [];
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const context = matches.map((m: any) => m.content || "").join("\n");
+  const sorted = [...matches].sort(
+    (a: any, b: any) => (b.similarity || 0) - (a.similarity || 0),
+  );
 
-  const stream = await generateAnswerStream(question, context);
+  const unique = new Map();
+
+  for (const doc of sorted) {
+    const key = doc.content?.slice(0, 100);
+
+    if (key && !unique.has(key)) {
+      unique.set(key, doc);
+    }
+  }
+
+  // STEP 3: take top 5
+  const finalDocs = Array.from(unique.values()).slice(0, 5);
+
+  const context = finalDocs
+    .map(
+      (d: any, i: number) =>
+        `Source ${i + 1} (${d.metadata?.source || "unknown"}):
+    ${d.content}`,
+    )
+    .join("\n\n---\n\n");
+
+  const mode = detectMode(question, finalDocs.length > 0);
+
+  const stream = await generateAnswerStream(
+    question,
+    context,
+    mode,
+    memory,
+    user.id,
+  );
 
   return new Response(
     new ReadableStream({
@@ -36,9 +73,12 @@ export async function POST(req: Request) {
 
         while (true) {
           const { done, value } = await reader.read();
+
           if (done) break;
 
-          buffer += decoder.decode(value, { stream: true });
+          buffer += decoder.decode(value, {
+            stream: true,
+          });
 
           const lines = buffer.split("\n");
           buffer = lines.pop() || "";
@@ -46,11 +86,30 @@ export async function POST(req: Request) {
           for (const line of lines) {
             const trimmed = line.trim();
 
-            if (!trimmed || !trimmed.startsWith("data:")) continue;
+            if (!trimmed) continue;
 
+            /**
+             * CASE 1:
+             * Agent fallback stream returns plain text
+             */
+            if (!trimmed.startsWith("data:")) {
+              controller.enqueue(
+                encoder.encode(
+                  JSON.stringify({
+                    response: trimmed,
+                  }) + "\n",
+                ),
+              );
+              continue;
+            }
+
+            /**
+             * CASE 2:
+             * Groq SSE stream
+             */
             const jsonStr = trimmed.replace("data:", "").trim();
 
-            if (jsonStr === "[DONE]") continue;
+            if (!jsonStr || jsonStr === "[DONE]") continue;
 
             try {
               const parsed = JSON.parse(jsonStr);
@@ -59,7 +118,11 @@ export async function POST(req: Request) {
 
               if (token) {
                 controller.enqueue(
-                  encoder.encode(JSON.stringify({ response: token }) + "\n"),
+                  encoder.encode(
+                    JSON.stringify({
+                      response: token,
+                    }) + "\n",
+                  ),
                 );
               }
             } catch (err) {
@@ -84,6 +147,7 @@ export async function POST(req: Request) {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "Transfer-Encoding": "chunked",
+        "Cache-Control": "no-cache, no-transform",
       },
     },
   );

@@ -3,10 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import ChatMessages from "./ChatMessages";
 import ChatInput from "./ChatInput";
-import EmptyState from "./EmptyState";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
+import { getMemory } from "@/lib/tools/memory";
 
 export default function ChatLayout() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -41,9 +38,14 @@ export default function ChatLayout() {
       return updated;
     });
 
+    const memory = getMemory();
+
     const res = await fetch("/api/chat", {
       method: "POST",
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({
+        question,
+        memory,
+      }),
     });
 
     const reader = res.body?.getReader();
@@ -110,8 +112,12 @@ export default function ChatLayout() {
   }
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({
+        behavior: "smooth",
+      });
+    });
+  }, [messages, loading]);
 
   return (
   <div className="flex flex-col h-full flex-1 overflow-hidden">
@@ -122,6 +128,7 @@ export default function ChatLayout() {
         messages={messages}
         loading={loading}
       />
+      <div ref={bottomRef} className="h-1" />
     </div>
 
     {/* Sticky Input */}

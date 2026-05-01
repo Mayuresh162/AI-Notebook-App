@@ -1,57 +1,84 @@
-export async function generateAnswerStream(question: string, context: string) {
-  const prompt = `
-You are an AI research assistant.
+import { getAgent } from "@/lib/agent";
+import { getPrompt } from "@/lib/prompts";
 
-Answer using the provided sources.
+export async function generateAnswerStream(
+  question: string,
+  context: string,
+  mode:
+    | "sources"
+    | "web"
+    | "hybrid"
+    | "general",
+  memory: {
+    key: string;
+    value: string;
+  }[] = [],
+  userId: string
+) {
 
-Sources:
-${context}
+  const memoryText = memory.length > 0 ? memory.map((m) => `${m.key}: ${m.value}`).join("\n") : "No memory yet.";
+  const prompt = getPrompt(question, context, mode, memoryText);
 
-Question:
-${question}
+  try {
+    const agent = await getAgent(userId);
 
-Answer:
-`;
+    const result = await agent.invoke({
+      input: prompt,
+    });
 
-  // const res = await fetch("http://localhost:11434/api/generate", {
-  //   method: "POST",
-  //   headers: {
-  //     "Content-Type": "application/json",
-  //   },
-  //   body: JSON.stringify({
-  //     model: "llama3",
-  //     prompt,
-  //     stream: true,
-  //   }),
-  // });
+    const text = result.output || "No response generated.";
 
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: process.env.GROQ_MODEL || "llama-3.1-8b-instant",
-      messages: [
-        { role: "system", content: "You are a helpful assistant." },
-        { role: "user", content: prompt },
-      ],
-      stream: true,
-    }),
-  });
+    const encoder = new TextEncoder();
 
-  // ✅ Handle API errors
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("Groq API error:", text);
-    throw new Error("Failed to fetch response from Groq");
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(text));
+        controller.close();
+      },
+    });
+
+    return stream;
+  } catch (err) {
+    console.error("Agent failed. Falling back to Groq stream...", err);
+
+    const res = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model:
+            process.env.GROQ_MODEL ||
+            "llama-3.1-8b-instant",
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are a helpful AI research assistant.",
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          stream: true,
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("Groq API error:", text);
+      throw new Error("Failed to fetch response from Groq");
+    }
+
+    if (!res.body) {
+      throw new Error("No response body from Groq");
+    }
+
+    return res.body;
   }
-
-  // ✅ Ensure stream exists
-  if (!res.body) {
-    throw new Error("No response body from Groq");
-  }
-
-  return res.body;
 }

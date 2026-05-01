@@ -1,7 +1,14 @@
 import { loadURL } from "@/loaders/urlLoader";
 import { ingestDocument } from "@/lib/ingest";
+import { requireUser } from "@/lib/supabase-server";
 
 export async function POST(req: Request) {
+  const auth = await requireUser();
+
+  if (auth.error) return Response.json({ error: auth.error }, { status: 400 });
+
+  const { user } = auth;
+  
   const { url } = await req.json();
 
   const result = await loadURL(url);
@@ -9,7 +16,7 @@ export async function POST(req: Request) {
   const ingestResult = await ingestDocument(result.text, {
     source: "url",
     url,
-  });
+  }, user.id);
 
   let finalChunks;
 

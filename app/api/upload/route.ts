@@ -1,9 +1,16 @@
 import { loadPDF } from "@/loaders/pdfLoader";
 import { ingestDocument } from "@/lib/ingest";
+import { requireUser } from "@/lib/supabase-server";
 
 export async function POST(req: Request) {
   const formData = await req.formData();
   const file = formData.get("file") as File;
+
+ const auth = await requireUser();
+
+  if (auth.error) return Response.json({ error: auth.error }, { status: 400 });
+
+  const { user } = auth;
 
   if (!file) return Response.json({ error: "No file" }, { status: 400 });
 
@@ -12,8 +19,8 @@ export async function POST(req: Request) {
 
   const ingestResult = await ingestDocument(result.text, {
     source: "pdf",
-    name: file.name,
-  });
+    name: file.name
+  }, user.id);
 
   let finalChunks;
 

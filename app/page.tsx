@@ -3,7 +3,7 @@ import ChatLayout from "@/components/ChatLayout";
 import SidebarDrawer from "@/components/SidebarDrawer";
 import UserMenu from "@/components/UserMenu";
 
-export default function Home() {
+export default async function Home() {
   return (
     <div className="h-screen bg-[#0a0a0a] overflow-hidden md:p-4">
 

@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 type Message = {
   role: "user" | "assistant";
   content: string;
-  sources: [];
+  sources?: any[];
 };
 
 export default function ChatMessages({
@@ -42,7 +42,7 @@ export default function ChatMessages({
               <div className="whitespace-pre-wrap break-words">
                 {m.content}
 
-                {!isUser && m.sources?.length > 0 && (
+                {!isUser && m.sources && m.sources?.length > 0 && (
                   <span className="ml-1 text-xs text-muted-foreground">
                     {m.sources.map((_, i) => `[${i + 1}]`).join(" ")}
                   </span>
@@ -54,7 +54,7 @@ export default function ChatMessages({
                 )}
               </div>
 
-              {!isUser && m.sources?.length > 0 && (
+              {!isUser && m.sources && m.sources?.length > 0 && (
                 <div className="mt-4 pt-3 border-t border-white/5 text-xs text-zinc-400 space-y-2">
                   {m.sources.map(
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any

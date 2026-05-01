@@ -1,6 +1,14 @@
 import { getSupabase } from "@/lib/supabase";
+import { requireUser } from "@/lib/supabase-server";
 
 export async function GET() {
+
+  const auth = await requireUser();
+
+  if (auth.error) return auth.error;
+
+  const { user } = auth;
+
   const supabase = getSupabase();
 
   if (!supabase) {
@@ -12,7 +20,9 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("documents")
-    .select("metadata")
+    .select("id, metadata")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
     .limit(100);
 
   if (error) {
