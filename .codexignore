@@ -1,0 +1,12 @@
+node_modules
+dist
+build
+coverage
+.next
+.cache
+pnpm-lock.yaml
+package-lock.json
+*.log
+*.sqlite
+*.png
+*.jpg

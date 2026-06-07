@@ -36,11 +36,8 @@ export async function proxy(req: NextRequest) {
     }
   );
 
-  let user = null;
-
   if (!req.nextUrl.pathname.startsWith("/auth/callback")) {
-    const result = await supabase.auth.getUser();
-    user = result.data.user;
+    await supabase.auth.getUser();
   }
 
   return response;
