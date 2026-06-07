@@ -30,4 +30,13 @@
     background: var(--background);
     color: hsl(var(--foreground));
   }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
 }

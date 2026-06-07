@@ -1,0 +1,112 @@
+{
+  "app": {
+    "name": "AI Notebook"
+  },
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Continue to your AI notebook.",
+    "emailPlaceholder": "you@example.com",
+    "emailRequired": "Enter your email address.",
+    "magicLink": "Send magic link",
+    "sending": "Sending...",
+    "magicSent": "Magic link sent. Check your email to continue.",
+    "magicFailed": "Unable to send magic link. Please try again.",
+    "oauthFailed": "Unable to start sign in. Please try again.",
+    "continueGoogle": "Continue with Google",
+    "continueGithub": "Continue with GitHub",
+    "redirecting": "Redirecting..."
+  },
+  "sidebar": {
+    "title": "Notebook",
+    "subtitle": "Chat with your sources",
+    "logout": "Sign out",
+    "quickActions": {
+      "addFile": "Add Source File",
+      "fileInput": "Choose source file",
+      "addUrl": "URL",
+      "pasteText": "Text",
+      "newChat": "New Chat",
+      "dropzone": "Drop a source file to upload"
+    },
+    "threads": {
+      "heading": "Chats",
+      "empty": "No chats yet.",
+      "select": "Open chat: {title}"
+    },
+    "sources": {
+      "heading": "Sources",
+      "empty": "No sources added yet.",
+      "untitled": "Untitled",
+      "generic": "source",
+      "select": "Select source: {name}",
+      "deselect": "Deselect source: {name}",
+      "remove": "Remove source: {name}"
+    },
+    "integrations": {
+      "heading": "Integrations",
+      "googleDrive": "Google Drive",
+      "notion": "Notion",
+      "sync": "Sync Connected Apps"
+    }
+  },
+  "sourceDialog": {
+    "title": "Add source",
+    "description": "Add a link or paste text to index it as a searchable source.",
+    "linkTab": "Link",
+    "textTab": "Text",
+    "linkLabel": "Source URL",
+    "linkPlaceholder": "https://example.com/article",
+    "textLabel": "Source text",
+    "textPlaceholder": "Paste notes, docs, or snippets...",
+    "linkRequired": "Enter a link to add.",
+    "textRequired": "Paste text to add.",
+    "cancel": "Cancel",
+    "submit": "Add source",
+    "submitting": "Adding..."
+  },
+  "chat": {
+    "placeholder": "Ask anything about your sources...",
+    "inputLabel": "Ask a question about your sources",
+    "submit": "Send message",
+    "sending": "Sending message",
+    "thinking": "Thinking...",
+    "streamInterrupted": "Stream interrupted.",
+    "source": "Source"
+  },
+  "emptyState": {
+    "title": "Your research starts here",
+    "description": "Add PDFs, YouTube videos, or paste text on the left, then ask anything about your sources.",
+    "summarize": "Summarize all sources",
+    "themes": "Key themes",
+    "arguments": "Main arguments"
+  },
+  "drawer": {
+    "open": "Open menu",
+    "close": "Close menu"
+  },
+  "toast": {
+    "signInAgain": "Please sign in again.",
+    "signInAgainBeforeUpload": "Please sign in again before uploading.",
+    "checkingSession": "Checking session...",
+    "uploadingFile": "Uploading file... {progress}%",
+    "queuedForIndexing": "Queued for indexing",
+    "queuedDescription": "Your source will appear after background processing.",
+    "indexingFailed": "Indexing failed",
+    "indexingFailedDescription": "Please try uploading the source again.",
+    "uploadFailed": "Upload failed",
+    "uploadSuccessful": "Upload successful",
+    "youtubeIndexed": "YouTube video indexed successfully",
+    "articleIndexed": "Article indexed successfully",
+    "textIndexed": "Text indexed successfully",
+    "sessionExpired": "Your session expired. Please sign in again.",
+    "genericError": "Something went wrong.",
+    "processingContent": "Processing content...",
+    "removingSource": "Removing source...",
+    "sourceRemoved": "Source removed",
+    "removalFailed": "Removal failed",
+    "syncingSources": "Syncing sources...",
+    "sourcesSynced": "All sources synced",
+    "syncFailed": "Sync failed",
+    "maxSources": "Maximum 5 sources per thread"
+  }
+}
