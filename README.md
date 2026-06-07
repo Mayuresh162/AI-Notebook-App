@@ -201,11 +201,12 @@ INTEGRATION_TOKEN_ENCRYPTION_KEY=your_32_byte_or_longer_secret
 INGESTION_CRON_SECRET=your_random_cron_secret
 APP_URL=http://localhost:3000
 
-# Supabase Auth / integration OAuth
+# Integration OAuth
+# Used by Google Drive integration routes, not Supabase Google login.
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
-GITHUB_CLIENT_ID=your_github_client_id
-GITHUB_CLIENT_SECRET=your_github_client_secret
+
+# Used by Notion integration routes.
 NOTION_CLIENT_ID=your_notion_client_id
 NOTION_CLIENT_SECRET=your_notion_client_secret
 
@@ -219,6 +220,17 @@ Use separate Supabase projects for local/staging and production whenever
 possible. `DATA_ENV` is stored with document embeddings and used during search,
 so keep it explicit in every deployed environment, for example `local`,
 `staging`, or `prod`.
+
+Configure login providers in the Supabase Auth dashboard. Enable Google and
+GitHub providers there for app login, then add these redirect URLs:
+
+```txt
+http://localhost:3000/auth/callback
+https://YOUR_DOMAIN.com/auth/callback
+```
+
+Local `.env*` files must never be committed. Rotate any key that has been
+exposed in terminal logs, screenshots, commits, or shared chat transcripts.
 
 ---
 
@@ -325,7 +337,9 @@ GitHub Actions handles quality checks. Vercel remains responsible for deployment
 * Set `DATA_ENV` explicitly for every environment before ingesting sources
 * Supabase cron or another trusted scheduler should call `/api/ingestion/process`
   with `INGESTION_CRON_SECRET` for background upload indexing
-* Keep `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_SERVICE_KEY`, `OPENAI_API_KEY`, `GROQ_API_KEY`, OAuth client secrets, and integration tokens server-side only
+* Keep `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_SERVICE_KEY`, `OPENAI_API_KEY`,
+  `GROQ_API_KEY`, Google Drive and Notion OAuth secrets,
+  `INTEGRATION_TOKEN_ENCRYPTION_KEY`, and `INGESTION_CRON_SECRET` server-side only
 * Add a privacy policy before collecting real user data
 
 ---
