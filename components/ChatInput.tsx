@@ -1,37 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useCallback, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ArrowUp, Loader2 } from "lucide-react";
 
-export default function ChatInput({
+function ChatInputComponent({
   ask,
   loading,
+  disabled,
+  placeholder,
 }: {
   ask: (question: string) => Promise<void>;
   loading?: boolean;
+  disabled?: boolean;
+  placeholder?: string;
 }) {
+  const t = useTranslations("chat");
   const [question, setQuestion] = useState("");
+  const resolvedPlaceholder = placeholder || t("placeholder");
 
-  async function handleAsk() {
+  const handleAsk = useCallback(async () => {
     const value = question.trim();
 
-    if (!value || loading) return;
+    if (!value || loading || disabled) return;
 
     setQuestion("");
 
     await ask(value);
-  }
+  }, [ask, disabled, loading, question]);
 
   return (
     <div className="md:static fixed bottom-0 left-0 right-0 z-40 border-t border-white/5 bg-[#0a0a0a]/95 backdrop-blur-xl p-3 md:p-4 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]">
       <div className="max-w-4xl mx-auto flex items-center gap-3">
 
         <Input
+          aria-label={t("inputLabel")}
           value={question}
-          disabled={loading}
-          placeholder="Ask anything about your sources..."
+          disabled={loading || disabled}
+          placeholder={resolvedPlaceholder}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -53,8 +61,9 @@ export default function ChatInput({
         />
 
         <Button
+          aria-label={loading ? t("sending") : t("submit")}
           onClick={handleAsk}
-          disabled={loading || !question.trim()}
+          disabled={loading || disabled || !question.trim()}
           className="
             h-12 w-12 shrink-0
             rounded-2xl
@@ -76,3 +85,5 @@ export default function ChatInput({
     </div>
   );
 }
+
+export default memo(ChatInputComponent);
