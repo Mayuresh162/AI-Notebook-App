@@ -3,20 +3,30 @@
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 
 export default function SidebarDrawer({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const app = useTranslations("app");
+  const t = useTranslations("drawer");
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     const close = () => setOpen(false);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
 
     window.addEventListener("close-sidebar", close);
+    window.addEventListener("keydown", closeOnEscape);
 
-    return () => window.removeEventListener("close-sidebar", close);
+    return () => {
+      window.removeEventListener("close-sidebar", close);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
   }, []);
 
   return (
@@ -24,7 +34,7 @@ export default function SidebarDrawer({
       <button
         onClick={() => setOpen(true)}
         className="p-2"
-        aria-label="Open Menu"
+        aria-label={t("open")}
       >
         <Menu size={22} />
       </button>
@@ -46,9 +56,9 @@ export default function SidebarDrawer({
             className="absolute left-0 top-0 h-full w-[86%] max-w-[320px] bg-[#111111] shadow-2xl border-r border-white/10 overflow-y-auto"
           >
             <div className="h-14 flex items-center justify-between px-4 border-b border-white/10">
-              <span className="font-medium">AI Notebook</span>
+              <span className="font-medium">{app("name")}</span>
 
-              <button onClick={() => setOpen(false)}>
+              <button aria-label={t("close")} onClick={() => setOpen(false)}>
                 <X size={20} />
               </button>
             </div>

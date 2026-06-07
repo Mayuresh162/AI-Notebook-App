@@ -1,395 +1,392 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import axios from "axios";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { CircleX, Power } from "lucide-react";
-import { getSupabaseClient } from "@/lib/supabase-client";
+import {
+  connectGoogleDrive,
+  connectNotion,
+  fetchSourceList,
+  fetchUploadIngestionStatus,
+  getSourceKey,
+  getSourceName,
+  ingestSourceText,
+  ingestSourceUrl,
+  isUnauthorizedApiError,
+  removeSourceByName,
+  syncConnectedSources,
+  UPLOAD_STATUS_POLL_MS,
+  uploadSourceFile,
+  type SourceMetadata,
+} from "@/lib/api/source-client";
+import {
+  getAuthorizedRequestConfig,
+  signOutAndRedirect,
+} from "@/lib/api/auth-client";
+import { SidebarHeader } from "@/components/sidebar/SidebarHeader";
+import { SidebarIntegrations } from "@/components/sidebar/SidebarIntegrations";
+import { SidebarQuickActions } from "@/components/sidebar/SidebarQuickActions";
+import { SidebarSourcesList } from "@/components/sidebar/SidebarSourcesList";
+import { SidebarThreadsList } from "@/components/sidebar/SidebarThreadsList";
+import {
+  closeSidebarDrawer,
+  removeCachedSourceName,
+} from "@/lib/client-storage";
+import type { Thread } from "@/lib/api/thread-client";
+import { queryKeys } from "@/lib/api/query-keys";
 
-export default function Sidebar() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [sources, setSources] = useState<any[]>([]);
+const SourceUploadDialog = dynamic(
+  () =>
+    import("@/components/sidebar/SourceUploadDialog").then(
+      (mod) => mod.SourceUploadDialog,
+    ),
+);
+
+type SidebarProps = {
+  threads: Thread[];
+  activeThreadId: string | null;
+  creatingThread: boolean;
+  selectedSources: string[];
+  onCreateThread: () => void;
+  onSelectThread: (threadId: string) => void;
+  onSelectedSourcesChange: (sourceKeys: string[]) => void;
+};
+
+function Sidebar({
+  threads,
+  activeThreadId,
+  creatingThread,
+  selectedSources,
+  onCreateThread,
+  onSelectThread,
+  onSelectedSourcesChange,
+}: SidebarProps) {
+  const t = useTranslations("toast");
+  const quickActions = useTranslations("sidebar.quickActions");
+  const [dragActive, setDragActive] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
+  const [sourceDialogMode, setSourceDialogMode] = useState<"link" | "text">(
+    "link",
+  );
+  const [sourceDialogSubmitting, setSourceDialogSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const supabase = getSupabaseClient();
+  const queryClient = useQueryClient();
+  const { data: sources = [] } = useQuery({
+    queryKey: queryKeys.sources,
+    queryFn: fetchSourceList,
+  });
+  const removeSourceMutation = useMutation({
+    mutationFn: async (source: SourceMetadata) => {
+      const config = await getAuthorizedRequestConfig();
 
-  function handleClick() {
+      if (!config) {
+        throw new Error("Please sign in again.");
+      }
+
+      const name = getSourceName(source);
+      const removed = await removeSourceByName(name, config);
+
+      return {
+        name,
+        removed,
+      };
+    },
+  });
+  const syncSourcesMutation = useMutation({
+    mutationFn: async () => {
+      const config = await getAuthorizedRequestConfig();
+
+      if (!config) {
+        throw new Error("Please sign in again.");
+      }
+
+      await syncConnectedSources(config);
+    },
+  });
+
+  const handleClick = useCallback(() => {
     fileRef.current?.click();
-  }
+  }, []);
 
-  function onSuccessUpload() {
-    window.dispatchEvent(new Event("close-sidebar"));
-  }
+  const onSuccessUpload = useCallback(() => {
+    closeSidebarDrawer();
+  }, []);
 
-  async function handleRemoveSource(s: any) {
-    const loading = toast.loading("Removing source...");
+  const toggleSelectedSource = useCallback((sourceKey: string) => {
+    onSelectedSourcesChange(
+      selectedSources.includes(sourceKey)
+        ? selectedSources.filter((key) => key !== sourceKey)
+        : [...selectedSources, sourceKey],
+    );
+  }, [onSelectedSourcesChange, selectedSources]);
+
+  const refreshSources = useCallback(async () => {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.sources,
+    });
+  }, [queryClient]);
+
+  const pollUploadStatus = useCallback(async (
+    sessionId: string,
+    config: Awaited<ReturnType<typeof getAuthorizedRequestConfig>>,
+  ) => {
+    if (!config) return "queued";
+
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, UPLOAD_STATUS_POLL_MS));
+
+      const status = await queryClient.fetchQuery({
+        queryKey: queryKeys.uploadStatus(sessionId),
+        queryFn: () => fetchUploadIngestionStatus(sessionId, config),
+      });
+
+      if (status === "completed" || status === "failed") return status;
+    }
+
+    return "queued";
+  }, [queryClient]);
+
+  const handleRemoveSource = useCallback(async (s: SourceMetadata) => {
+    const loading = toast.loading(t("removingSource"));
 
     try {
       /**
        * Delete only clicked source
        */
-      const name = s?.name || s?.url || "Untitled";
-      const res = await axios.post("/api/reset", {
-        names: [name],
-      });
+      const { name, removed } = await removeSourceMutation.mutateAsync(s);
 
-      if (res.data.success) {
-        /**
-         * Update localStorage
-         */
-        const existing = JSON.parse(localStorage.getItem("sources") || "[]");
-
-        const updated = existing.filter((item: string) => item !== name);
-
-        localStorage.setItem("sources", JSON.stringify(updated));
-
-        await fetchSources();
+      if (removed) {
+        removeCachedSourceName(name);
+        await refreshSources();
       }
 
-      toast.success("Source removed 🎉", { id: loading });
-    } catch (err) {
-      toast.error("Removal failed ❌", { id: loading });
+      toast.success(t("sourceRemoved"), { id: loading });
+    } catch {
+      toast.error(t("removalFailed"), { id: loading });
     }
-  }
+  }, [refreshSources, removeSourceMutation, t]);
 
-  async function uploadSource(e: React.ChangeEvent<HTMLInputElement>) {
+  const processSelectedFile = useCallback(async (file: File) => {
+    const loading = toast.loading(t("checkingSession"));
+
+    try {
+      const config = await getAuthorizedRequestConfig();
+
+      if (!config) {
+        toast.error(t("signInAgainBeforeUpload"), { id: loading });
+        return;
+      }
+
+      toast.loading(t("uploadingFile", { progress: 0 }), { id: loading });
+
+      const upload = await uploadSourceFile(file, config, (progress) => {
+        toast.loading(t("uploadingFile", { progress }), { id: loading });
+      });
+
+      toast.success(t("queuedForIndexing"), {
+        description: t("queuedDescription"),
+        id: loading,
+      });
+      onSuccessUpload();
+
+      void pollUploadStatus(upload.sessionId, config).then((status) => {
+        if (status === "completed") {
+          void refreshSources();
+        } else if (status === "failed") {
+          toast.error(t("indexingFailed"), {
+            description: t("indexingFailedDescription"),
+          });
+        }
+      });
+    } catch (error) {
+      const description =
+        isUnauthorizedApiError(error)
+          ? t("sessionExpired")
+          : t("genericError");
+
+      toast.error(t("uploadFailed"), {
+        description,
+        id: loading,
+      });
+    }
+  }, [onSuccessUpload, pollUploadStatus, refreshSources, t]);
+
+  const uploadSource = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
 
     if (!file) return;
 
-    const ext = file.name.split(".").pop()?.toLowerCase();
+    await processSelectedFile(file);
+  }, [processSelectedFile]);
 
-    const formData = new FormData();
-    formData.append("file", file);
+  const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragActive(true);
+  }, []);
 
-    const loading = toast.loading("Processing content...");
+  const handleDragLeave = useCallback(() => {
+    setDragActive(false);
+  }, []);
 
-    try {
-      const endpoint = ext === "pdf" ? "/api/upload" : "/api/filesystem";
-      await axios.post(endpoint, formData);
+  const handleDrop = useCallback(async (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragActive(false);
 
-      toast.success("Upload successful 🎉", {
-        description: "Source indexed successfully",
-        id: loading,
-      });
-      await fetchSources();
-      onSuccessUpload();
-    } catch (err) {
-      toast.error("Upload failed ❌", {
-        description: "Something went wrong.",
-        id: loading,
-      });
-    }
-  }
+    const file = event.dataTransfer.files?.[0];
 
-  async function addURL() {
-    const url = prompt("Enter link");
+    if (!file) return;
 
-    if (!url) return;
+    await processSelectedFile(file);
+  }, [processSelectedFile]);
 
+  const openSourceDialog = useCallback((mode: "link" | "text") => {
     if (sources.length >= 5) {
-      toast.error("Maximum 5 sources per thread");
+      toast.error(t("maxSources"));
       return;
     }
 
-    const isYoutube = url.includes("youtube.com") || url.includes("youtu.be");
+    setSourceDialogMode(mode);
+    setSourceDialogOpen(true);
+  }, [sources.length, t]);
 
-    const isGithub = url.includes("github.com");
-
-    const endpoint = isGithub
-      ? "/api/github"
-      : isYoutube
-        ? "/api/youtube"
-        : "/api/url";
-
-    const loading = toast.loading("Processing content...");
+  const submitSourceDialog = useCallback(async (mode: "link" | "text", value: string) => {
+    const loading = toast.loading(t("processingContent"));
 
     try {
-      await axios.post(endpoint, { url });
+      setSourceDialogSubmitting(true);
+      const config = await getAuthorizedRequestConfig();
 
-      toast.success("Upload successful 🎉", {
-        description: isYoutube
-          ? "YouTube video indexed successfully"
-          : "Article indexed successfully",
-        id: loading,
-      });
+      if (!config) {
+        toast.error(t("signInAgain"), { id: loading });
+        return;
+      }
 
-      await fetchSources();
+      if (mode === "link") {
+        const sourceKind = await ingestSourceUrl(value, config);
+
+        toast.success(t("uploadSuccessful"), {
+          description: sourceKind === "youtube"
+            ? t("youtubeIndexed")
+            : t("articleIndexed"),
+          id: loading,
+        });
+      } else {
+        await ingestSourceText(value, config);
+
+        toast.success(t("uploadSuccessful"), {
+          description: t("textIndexed"),
+          id: loading,
+        });
+      }
+
+      await refreshSources();
+      setSourceDialogOpen(false);
       onSuccessUpload();
-    } catch (err) {
-      toast.error("Upload failed ❌", {
-        description: "Something went wrong.",
+    } catch {
+      toast.error(t("uploadFailed"), {
+        description: t("genericError"),
         id: loading,
       });
+    } finally {
+      setSourceDialogSubmitting(false);
     }
-  }
+  }, [onSuccessUpload, refreshSources, t]);
 
-  async function pasteText() {
-    const text = prompt("Paste text");
+  const logout = useCallback(async () => {
+    await signOutAndRedirect();
+  }, []);
 
-    if (!text) return;
-
-    if (sources.length >= 5) {
-      toast.error("Maximum 5 sources per thread");
-      return;
-    }
-
-    const loading = toast.loading("Processing content...");
-
-    try {
-      await axios.post("/api/text", { text });
-
-      toast.success("Upload successful 🎉", {
-        description: "Text indexed successfully",
-        id: loading,
-      });
-
-      await fetchSources();
-      onSuccessUpload();
-    } catch (err) {
-      toast.error("Upload failed ❌", {
-        description: "Something went wrong.",
-        id: loading,
-      });
-    }
-  }
-
-  const fetchSources = async () => {
-    try {
-      const res = await fetch("/api/sources");
-      const data = await res.json();
-
-      const safeSources = Array.isArray(data)
-        ? data
-        : Array.isArray(data.sources)
-          ? data.sources
-          : [];
-
-      setSources(safeSources);
-    } catch (err) {
-      console.error(err);
-      setSources([]);
-    }
-  };
-
-  const handleNewChat = () => {
-    localStorage.removeItem("chat_messages");
-    window.location.reload();
-  };
-
-  async function logout() {
-    await supabase.auth.signOut();
-    location.href = "/login";
-  }
-
-  const handleSync = async () => {
-    const id = toast.loading("Syncing sources...");
+  const handleSync = useCallback(async () => {
+    const id = toast.loading(t("syncingSources"));
 
     try {
       setSyncing(true);
-      await axios.post("/api/integrations/sync");
-      
-      toast.success("All sources synced 🎉",{ id });
-      setSyncing(false);
-      await fetchSources();
+      await syncSourcesMutation.mutateAsync();
+
+      toast.success(t("sourcesSynced"), { id });
+      await refreshSources();
     } catch {
-      toast.error(
-        "Sync failed ❌",
-        { id }
-      );
+      toast.error(t("syncFailed"), { id });
+    } finally {
+      setSyncing(false);
     }
-  }
+  }, [refreshSources, syncSourcesMutation, t]);
 
   useEffect(() => {
-    const load = async () => {
-      await fetchSources();
-    };
+    const sourceKeys = new Set(sources.map(getSourceKey));
+    const nextSelectedSources = selectedSources.filter((sourceKey) =>
+      sourceKeys.has(sourceKey),
+    );
 
-    load();
-  }, []);
+    if (nextSelectedSources.length !== selectedSources.length) {
+      onSelectedSourcesChange(nextSelectedSources);
+    }
+  }, [sources, selectedSources, onSelectedSourcesChange]);
 
   return (
-  <div className="w-full md:w-[300px] h-full bg-[#111111] flex flex-col border-r border-white/5">
-    {/* HEADER */}
-    <div className="px-5 pt-5 pb-4 border-b border-white/5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Notebook
-          </h1>
-          <p className="text-xs text-zinc-500 uppercase tracking-[0.18em] mt-1">
-            Chat with your sources
-          </p>
-        </div>
+    <div className="w-full md:w-[300px] h-full bg-[#111111] flex flex-col border-r border-white/5">
+      <SidebarHeader onLogout={logout} />
 
-        <Power
-          size={18}
-          onClick={logout}
-          className="cursor-pointer text-zinc-500 hover:text-white transition"
+      {/* BODY */}
+      <div className="flex-1 overflow-y-auto px-5 py-5">
+        <SidebarQuickActions
+          dragActive={dragActive}
+          onAddFile={handleClick}
+          onAddUrl={() => openSourceDialog("link")}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          onPasteText={() => openSourceDialog("text")}
+          onNewChat={onCreateThread}
+          newChatDisabled={creatingThread}
+        />
+
+        <SidebarThreadsList
+          threads={threads}
+          activeThreadId={activeThreadId}
+          onSelectThread={onSelectThread}
+        />
+
+        <SidebarSourcesList
+          sources={sources}
+          selectedSources={selectedSources}
+          onRemoveSource={handleRemoveSource}
+          onToggleSource={toggleSelectedSource}
+        />
+
+        <SidebarIntegrations
+          syncing={syncing}
+          onConnectGoogle={connectGoogleDrive}
+          onConnectNotion={connectNotion}
+          onSync={handleSync}
         />
       </div>
+
+      {/* HIDDEN INPUT */}
+      <input
+        type="file"
+        aria-label={quickActions("fileInput")}
+        accept=".pdf,.txt,.md,.csv,.json,.js,.ts,.jsx,.tsx,.zip"
+        ref={fileRef}
+        className="hidden"
+        onChange={uploadSource}
+      />
+
+      <SourceUploadDialog
+        open={sourceDialogOpen}
+        mode={sourceDialogMode}
+        submitting={sourceDialogSubmitting}
+        onOpenChange={setSourceDialogOpen}
+        onModeChange={setSourceDialogMode}
+        onSubmit={submitSourceDialog}
+      />
     </div>
-
-    {/* BODY */}
-    <div className="flex-1 overflow-y-auto px-5 py-5">
-      {/* QUICK ACTIONS */}
-      <div className="space-y-2">
-        <Button
-          onClick={handleClick}
-          className="w-full h-11 rounded-xl bg-white text-black hover:bg-zinc-200"
-        >
-          📄 Add Source File
-        </Button>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            variant="outline"
-            onClick={addURL}
-            className="h-10 rounded-xl bg-[#151515] border-white/10 hover:bg-[#1d1d1d]"
-          >
-            🔗 URL
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={pasteText}
-            className="h-10 rounded-xl bg-[#151515] border-white/10 hover:bg-[#1d1d1d]"
-          >
-            📝 Text
-          </Button>
-        </div>
-
-        <Button
-          variant="outline"
-          onClick={handleNewChat}
-          className="w-full h-10 rounded-xl bg-[#151515] border-white/10 hover:bg-[#1d1d1d]"
-        >
-          ✨ New Chat
-        </Button>
-      </div>
-
-      {/* SOURCES */}
-      <div className="mt-7">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs uppercase tracking-[0.18em] text-zinc-500">
-            Sources
-          </h2>
-
-          <span className="text-xs text-zinc-600">
-            {sources.length}
-          </span>
-        </div>
-
-        <div className="space-y-2">
-          {sources.length === 0 ? (
-            <div className="rounded-xl border border-white/5 bg-[#151515] px-3 py-4 text-sm text-zinc-500">
-              No sources added yet.
-            </div>
-          ) : (
-            sources.map((s, i) => {
-              const source = s?.source;
-              const label =
-                s?.name || s?.url || "Untitled";
-
-              const icon =
-                source === "pdf" ||
-                source === "filesystem"
-                  ? "📄"
-                  : source === "youtube"
-                    ? "🎥"
-                    : source === "github"
-                      ? "💻"
-                      : source === "url"
-                        ? "🌐"
-                        : source === "text"
-                          ? "📝"
-                          : "📁";
-
-              return (
-                <div
-                  key={i}
-                  className="group flex items-center gap-2 rounded-xl border border-white/5 bg-[#151515] px-3 py-2"
-                >
-                  <span>{icon}</span>
-
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm">
-                      {label}
-                    </p>
-
-                    <p className="text-[10px] uppercase tracking-wider text-zinc-500 mt-0.5">
-                      {source || "source"}
-                    </p>
-                  </div>
-
-                  <CircleX
-                    size={16}
-                    onClick={() =>
-                      handleRemoveSource(s)
-                    }
-                    className="cursor-pointer text-zinc-600 opacity-0 group-hover:opacity-100 hover:text-white transition"
-                  />
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-
-      {/* INTEGRATIONS */}
-      <div className="mt-7">
-        <h2 className="text-xs uppercase tracking-[0.18em] text-zinc-500 mb-3">
-          Integrations
-        </h2>
-
-        <div className="space-y-2">
-          <Button
-            variant="outline"
-            onClick={() =>
-              (window.location.href =
-                "/api/integrations/google/connect")
-            }
-            className="w-full justify-between h-10 rounded-xl bg-[#151515] border-white/10 hover:bg-[#1d1d1d]"
-          >
-            <span>Google Drive</span>
-            <span>📁</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={() =>
-              (window.location.href =
-                "/api/integrations/notion/connect")
-            }
-            className="w-full justify-between h-10 rounded-xl bg-[#151515] border-white/10 hover:bg-[#1d1d1d]"
-          >
-            <span>Notion</span>
-            <span>📝</span>
-          </Button>
-
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              variant="outline"
-              onClick={handleSync}
-              className="h-10 rounded-xl bg-[#151515] border-white/10 hover:bg-[#1d1d1d]"
-            >
-              🔄 Sync Connected Apps
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    {/* HIDDEN INPUT */}
-    <input
-      type="file"
-      accept=".pdf,.txt,.md,.csv,.json,.js,.ts,.jsx,.tsx"
-      ref={fileRef}
-      className="hidden"
-      onChange={uploadSource}
-    />
-  </div>
-);
+  );
 }
+
+export default memo(Sidebar);

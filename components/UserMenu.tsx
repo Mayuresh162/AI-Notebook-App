@@ -2,21 +2,19 @@
 
 import { useState } from 'react'
 import { User } from 'lucide-react'
-import { getSupabaseClient } from '@/lib/supabase-client'
+import { signOutAndRedirect } from '@/lib/api/auth-client'
+import { resetLocalChat } from '@/lib/client-storage'
 
 export default function UserMenu() {
   const [open, setOpen] = useState(false)
-  const supabase = getSupabaseClient();
 
   const handleNewChat = () => {
-    localStorage.removeItem("chat_messages");
-    window.location.reload();
+    resetLocalChat();
   }
 
 
   async function logout() {
-    await supabase.auth.signOut();
-    location.href = "/login";
+    await signOutAndRedirect();
   }
 
   return (
