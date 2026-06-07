@@ -1,6 +1,22 @@
 import { DynamicTool } from "@langchain/core/tools";
 import { Client } from "@notionhq/client";
 import { getSupabase } from "@/lib/supabase";
+import { decryptToken } from "@/lib/token-encryption";
+
+function getNotionResultTitle(result: unknown) {
+  const page = result as {
+    properties?: {
+      title?: {
+        title?: {
+          plain_text?: string;
+        }[];
+      };
+    };
+    url?: string;
+  };
+
+  return page.properties?.title?.title?.[0]?.plain_text || page.url || "Untitled";
+}
 
 export function getNotionTool(userId: string) {
   return new DynamicTool({
@@ -23,7 +39,7 @@ export function getNotionTool(userId: string) {
       }
 
       const notion = new Client({
-        auth: data.access_token,
+        auth: decryptToken(data.access_token),
       });
 
       const result = await notion.search({
@@ -36,14 +52,7 @@ export function getNotionTool(userId: string) {
       }
 
       return result.results
-        .map((p: any, i: number) => {
-          const title =
-            p.properties?.title?.title?.[0]
-              ?.plain_text ||
-            p.url;
-
-          return `${i + 1}. ${title}`;
-        })
+        .map((page, i) => `${i + 1}. ${getNotionResultTitle(page)}`)
         .join("\n");
     },
   });

@@ -2,6 +2,13 @@ import { DynamicTool } from "@langchain/core/tools";
 import { getEmbedding } from "@/lib/embeddings";
 import { searchDocuments } from "@/lib/search";
 
+type LocalDocument = {
+  content?: string;
+  metadata?: {
+    name?: string;
+  };
+};
+
 export function getLocalSearchTool(userId: string) {
   return new DynamicTool({
     name: "local_search",
@@ -23,7 +30,7 @@ export function getLocalSearchTool(userId: string) {
       return docs
         .slice(0, 5)
         .map(
-          (d: any) =>
+          (d: LocalDocument) =>
             `${d.metadata?.name}\n${d.content}`
         )
         .join("\n\n");

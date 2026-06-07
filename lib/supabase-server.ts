@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 export async function getServerSupabase() {
@@ -30,14 +30,27 @@ export async function requireUser() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    return {
-      error: Response.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      ),
-    };
+  if (user) {
+    return { user };
   }
 
-  return { user };
+  const headersList = await headers();
+  const token = headersList.get("authorization")?.replace(/^Bearer\s+/i, "");
+
+  if (token) {
+    const {
+      data: { user: bearerUser },
+    } = await supabase.auth.getUser(token);
+
+    if (bearerUser) {
+      return { user: bearerUser };
+    }
+  }
+
+  return {
+    error: Response.json(
+      { error: "Unauthorized" },
+      { status: 401 }
+    ),
+  };
 }

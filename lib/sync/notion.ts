@@ -1,11 +1,19 @@
 import { getEmbedding } from "../embeddings";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/lib/supabase";
+import { getDataEnvironment } from "@/lib/app-env";
 
-export async function syncNotionForUser(integration: any) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+type Integration = {
+  id: string;
+  user_id: string;
+  access_token: string;
+};
+
+type NotionPage = {
+  id?: string;
+};
+
+export async function syncNotionForUser(integration: Integration) {
+  const supabase = getSupabaseAdmin();
 
   const res = await fetch("https://api.notion.com/v1/search", {
     method: "POST",
@@ -16,7 +24,7 @@ export async function syncNotionForUser(integration: any) {
   });
 
   const data = await res.json();
-  const pages = data.results || [];
+  const pages = Array.isArray(data.results) ? data.results as NotionPage[] : [];
 
   for (const page of pages) {
     const text = JSON.stringify(page);
@@ -29,9 +37,9 @@ export async function syncNotionForUser(integration: any) {
       embedding,
       metadata: {
         source: "notion",
-        name: page.id,
+        name: page.id || "Untitled Notion page",
       },
-      env: process.env.NODE_ENV === "development" ? "dev" : "prod",
+      env: getDataEnvironment(),
     });
   }
 

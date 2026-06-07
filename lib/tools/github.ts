@@ -1,5 +1,4 @@
-import { getEmbedding } from "../embeddings";
-import { getSupabase } from "../supabase";
+import { ingestDocument } from "@/lib/ingest";
 
 function parseRepo(url: string) {
   const parts =
@@ -15,7 +14,8 @@ function parseRepo(url: string) {
 }
 
 export async function ingestGithubRepo(
-  url: string
+  url: string,
+  userId: string,
 ) {
   const { owner, repo } =
     parseRepo(url);
@@ -30,25 +30,16 @@ export async function ingestGithubRepo(
     }
   );
 
+  if (!res.ok) {
+    throw new Error("Failed to fetch GitHub repository README");
+  }
+
   const readme =
     await res.text();
 
-  const embedding =
-    await getEmbedding(readme);
-
-  const supabase =
-    getSupabase();
-
-  await supabase
-    .from("documents")
-    .insert({
-      content: readme,
-      embedding,
-      metadata: {
-        name: `${owner}/${repo}`,
-        source: "github",
-        url,
-      },
-      env: process.env.NODE_ENV === "development" ? "dev" : "prod",
-    });
+  await ingestDocument(readme, {
+    name: `${owner}/${repo}`,
+    source: "github",
+    url,
+  }, userId);
 }

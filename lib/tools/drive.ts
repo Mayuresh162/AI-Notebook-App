@@ -1,6 +1,7 @@
 import { DynamicTool } from "@langchain/core/tools";
 import { google } from "googleapis";
 import { getSupabase } from "@/lib/supabase";
+import { decryptToken } from "@/lib/token-encryption";
 
 export function getDriveTool(userId: string) {
   return new DynamicTool({
@@ -24,7 +25,7 @@ export function getDriveTool(userId: string) {
 
       const auth = new google.auth.OAuth2();
       auth.setCredentials({
-        access_token: data.access_token,
+        access_token: decryptToken(data.access_token),
       });
 
       const drive = google.drive({

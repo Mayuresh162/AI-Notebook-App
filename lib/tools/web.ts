@@ -1,5 +1,11 @@
 import { DynamicTool } from "@langchain/core/tools";
 
+type SearchResult = {
+  title?: string;
+  content?: string;
+  url?: string;
+};
+
 export const webTool = new DynamicTool({
   name: "fetch_url",
   description: "Fetch webpage text from URL",
@@ -31,8 +37,9 @@ export const webSearchTool = new DynamicTool({
 
       const data = await res.json();
 
-      const results =
-        data?.results?.slice(0, 5) || [];
+      const results = Array.isArray(data?.results)
+        ? (data.results as SearchResult[]).slice(0, 5)
+        : [];
 
       if (!results.length) {
         return "No results found.";
@@ -40,7 +47,7 @@ export const webSearchTool = new DynamicTool({
 
       return results
         .map(
-          (r: any, i: number) =>
+          (r, i) =>
             `${i + 1}. ${r.title}\n${r.content}\n${r.url}`
         )
         .join("\n\n");

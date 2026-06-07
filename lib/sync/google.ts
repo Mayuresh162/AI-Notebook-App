@@ -1,11 +1,19 @@
 import { getEmbedding } from "../embeddings";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/lib/supabase";
+import { getDataEnvironment } from "@/lib/app-env";
 
-export async function syncGoogleForUser(integration: any) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+type Integration = {
+  id: string;
+  user_id: string;
+  access_token: string;
+};
+
+type GoogleDriveFile = {
+  name?: string;
+};
+
+export async function syncGoogleForUser(integration: Integration) {
+  const supabase = getSupabaseAdmin();
 
   const res = await fetch(
     "https://www.googleapis.com/drive/v3/files?pageSize=10",
@@ -17,10 +25,10 @@ export async function syncGoogleForUser(integration: any) {
   );
 
   const data = await res.json();
-  const files = data.files || [];
+  const files = Array.isArray(data.files) ? data.files as GoogleDriveFile[] : [];
 
   for (const file of files) {
-    const content = file.name;
+    const content = file.name || "Untitled Google Drive file";
 
     const embedding = await getEmbedding(content);
 
@@ -32,7 +40,7 @@ export async function syncGoogleForUser(integration: any) {
         source: "google_drive",
         name: file.name,
       },
-      env: process.env.NODE_ENV === "development" ? "dev" : "prod",
+      env: getDataEnvironment(),
     });
   }
 

@@ -1,6 +1,7 @@
 import { chunkText } from "./chunk";
 import { getEmbedding } from "./embeddings";
 import { getSupabase } from "./supabase";
+import { getDataEnvironment } from "./app-env";
 
 export async function ingestDocument(
   text: string,
@@ -21,13 +22,17 @@ export async function ingestDocument(
   for (const chunk of chunks) {
     const embedding = await getEmbedding(chunk);
 
-    await supabase.from("documents").insert({
+    const { error } = await supabase.from("documents").insert({
       user_id: userId,
       content: chunk,
       metadata,
       embedding,
-      env: process.env.NODE_ENV === "development" ? "dev" : "prod",
+      env: getDataEnvironment(),
     });
+
+    if (error) {
+      throw new Error(`Document insert failed: ${error.message}`);
+    }
   }
 
   return { chunks: chunks.length };

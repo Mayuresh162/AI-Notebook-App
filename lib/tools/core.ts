@@ -1,11 +1,12 @@
 import { DynamicTool } from "@langchain/core/tools";
+import { evaluateArithmeticExpression } from "@/lib/safe-math";
 
 export const calculatorTool = new DynamicTool({
   name: "calculator",
   description: "Solve math expressions",
   func: async (input: string) => {
     try {
-      return String(eval(input));
+      return String(evaluateArithmeticExpression(input));
     } catch {
       return "Invalid expression";
     }
