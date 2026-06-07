@@ -22,6 +22,11 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Print package lock diagnostics
+        run: |
+          node -e "const p=require('./package.json'); const l=require('./package-lock.json'); console.log({pkgNext:p.dependencies.next, lockRootNext:l.packages[''].dependencies.next, lockNodeNext:l.packages['node_modules/next']?.version, lockfileVersion:l.lockfileVersion})"
+          git rev-parse HEAD
+
       - name: Install dependencies
         run: npm ci
 
