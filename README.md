@@ -271,7 +271,7 @@ npm run test:e2e
 * Sync integrations (Notion / Drive)
 * Sources appear in sidebar
 * Ask questions in chat
-* Get grounded answers with citations
+* Get grounded answers with source references
 
 ---
 
@@ -342,17 +342,6 @@ Before deploying publicly:
 * Run `npm run lint`, `npx tsc --noEmit`, `npm run test:coverage -- --runInBand`, and `npm run build`
 * Test upload, URL, YouTube, GitHub, Notion, Google Drive, and chat routes while signed out and signed in
 * Review API logs to ensure secrets, tokens, document content, and user data are not logged
-
----
-
-## 🔮 Roadmap
-
-* 🔑 BYOK (Bring Your Own API Key)
-* 🔍 Hybrid search (keyword + vector)
-* 📌 Better citation UI (highlight snippets)
-* 🧠 Memory + personalization
-* 💰 Monetization
-* Broader Playwright coverage for authenticated flows
 
 ---
 
