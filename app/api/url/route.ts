@@ -1,33 +1,24 @@
 import { loadURL } from "@/loaders/urlLoader";
-import { ingestDocument } from "@/lib/ingest";
 import { requireUser } from "@/lib/supabase-server";
+import { ingestUrlRequest } from "@/lib/api/source-ingestion";
+import { enforceSameOriginRequest } from "@/lib/csrf";
+import { consumeSourceIngestRateLimit } from "@/lib/server-controls";
 
 export async function POST(req: Request) {
+  const csrf = await enforceSameOriginRequest();
+
+  if (csrf.error) return csrf.error;
+
   const auth = await requireUser();
 
-  if (auth.error) return Response.json({ error: auth.error }, { status: 400 });
+  if (auth.error) return auth.error;
 
-  const { user } = auth;
-  
-  const { url } = await req.json();
+  const rate = await consumeSourceIngestRateLimit(auth.user.id);
 
-  const result = await loadURL(url);
+  if (rate.error) return rate.error;
 
-  const ingestResult = await ingestDocument(result.text, {
+  return ingestUrlRequest(req, auth.user.id, {
     source: "url",
-    url,
-  }, user.id);
-
-  let finalChunks;
-
-  if (ingestResult instanceof Response) {
-    const data = await ingestResult.json();
-    finalChunks = data.chunks;
-  } else {
-    finalChunks = ingestResult.chunks;
-  }
-
-  return Response.json({
-    chunks: finalChunks,
+    load: loadURL,
   });
 }

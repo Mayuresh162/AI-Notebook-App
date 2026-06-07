@@ -1,36 +1,28 @@
-import { ingestDocument } from "@/lib/ingest";
 import { requireUser } from "@/lib/supabase-server";
+import { ingestTextRequest } from "@/lib/api/source-ingestion";
+import { jsonError } from "@/lib/security";
+import { enforceSameOriginRequest } from "@/lib/csrf";
+import { consumeSourceIngestRateLimit } from "@/lib/server-controls";
 
 export async function POST(req: Request) {
   try {
+    const csrf = await enforceSameOriginRequest();
+
+    if (csrf.error) return csrf.error;
+
     const auth = await requireUser();
 
-    if (auth.error)
-      return Response.json({ error: auth.error }, { status: 400 });
+    if (auth.error) return auth.error;
 
-    const { user } = auth;
-    const { text } = await req.json();
+    const rate = await consumeSourceIngestRateLimit(auth.user.id);
 
-    if (!text || !text.trim()) {
-      return Response.json({ error: "Text is required" }, { status: 400 });
-    }
+    if (rate.error) return rate.error;
 
-    const ingestResult = await ingestDocument(text, {
-      source: "text",
-      name: text,
-    }, user.id);
-
-    const finalChunks =
-      ingestResult instanceof Response
-        ? (await ingestResult.json()).chunks
-        : ingestResult.chunks;
-
-    return Response.json({
-      chunks: finalChunks,
-    });
+    return ingestTextRequest(req, auth.user.id);
   } catch (error) {
-    console.error("Text ingestion error:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to process text";
 
-    return Response.json({ error: "Failed to process text" }, { status: 500 });
+    return jsonError(message, 500);
   }
 }

@@ -1,26 +1,17 @@
-import * as cheerio from "cheerio";
+import { fetchSafeRemoteText } from "@/lib/safe-fetch";
 
 export async function loadURL(url: string) {
   try {
-    const res = await fetch(url);
-    const html = await res.text();
-
-    const $ = cheerio.load(html);
-
-    // remove unwanted tags
-    $("script, style, noscript").remove();
-
-    const text = $("body").text();
+    const text = await fetchSafeRemoteText(url);
 
     if (!text || !text.trim()) {
       throw new Error("Unable to extract content");
     }
 
     return {
-      text: text.replace(/\s+/g, " ").trim(),
+      text,
     };
-  } catch (error) {
-    console.error("URL parse error:", error);
+  } catch {
     throw new Error("Failed to extract URL content");
   }
 }

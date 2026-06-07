@@ -1,37 +1,51 @@
 import { loadPDF } from "@/loaders/pdfLoader";
-import { ingestDocument } from "@/lib/ingest";
 import { requireUser } from "@/lib/supabase-server";
+import { jsonError, validateFile } from "@/lib/security";
+import { ingestTextForUser } from "@/lib/api/source-ingestion";
+import { validateUploadContent } from "@/lib/upload/validate-content";
+import { enforceSameOriginRequest } from "@/lib/csrf";
+import { consumeSourceIngestRateLimit } from "@/lib/server-controls";
 
 export async function POST(req: Request) {
-  const formData = await req.formData();
-  const file = formData.get("file") as File;
+  try {
+    const csrf = await enforceSameOriginRequest();
 
- const auth = await requireUser();
+    if (csrf.error) return csrf.error;
 
-  if (auth.error) return Response.json({ error: auth.error }, { status: 400 });
+    const auth = await requireUser();
 
-  const { user } = auth;
+    if (auth.error) return auth.error;
 
-  if (!file) return Response.json({ error: "No file" }, { status: 400 });
+    const rate = await consumeSourceIngestRateLimit(auth.user.id);
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const result = await loadPDF(buffer);
+    if (rate.error) return rate.error;
 
-  const ingestResult = await ingestDocument(result.text, {
-    source: "pdf",
-    name: file.name
-  }, user.id);
+    const { user } = auth;
+    const formData = await req.formData();
+    const fileResult = validateFile(formData.get("file") as File | null, ["pdf"]);
 
-  let finalChunks;
+    if (fileResult.error) return fileResult.error;
 
-  if (ingestResult instanceof Response) {
-    const data = await ingestResult.json();
-    finalChunks = data.chunks;
-  } else {
-    finalChunks = ingestResult.chunks;
+    const { file } = fileResult;
+    const buffer = Buffer.from(await file.arrayBuffer());
+    if (!validateUploadContent(buffer, file.name)) {
+      return jsonError("File content does not match the expected type", 415);
+    }
+
+    const result = await loadPDF(buffer);
+
+    return ingestTextForUser(
+      result.text,
+      {
+        source: "pdf",
+        name: file.name,
+      },
+      user.id,
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to process PDF";
+
+    return jsonError(message, 500);
   }
-
-  return Response.json({
-    chunks: finalChunks,
-  });
 }
