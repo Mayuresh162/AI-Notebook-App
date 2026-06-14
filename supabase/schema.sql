@@ -161,50 +161,6 @@ create policy "Users can delete their own messages"
   for delete
   using (auth.uid() = user_id);
 
-create table if not exists public.source_upload_sessions (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  filename text not null,
-  mime_type text,
-  size_bytes integer not null check (size_bytes > 0 and size_bytes <= 10485760),
-  part_count integer not null check (part_count > 0),
-  received_parts integer not null default 0 check (received_parts >= 0),
-  status text not null default 'uploading'
-    check (status in ('uploading', 'queued', 'processing', 'completed', 'failed')),
-  error text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create table if not exists public.source_upload_parts (
-  id uuid primary key default gen_random_uuid(),
-  session_id uuid not null references public.source_upload_sessions(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
-  part_number integer not null check (part_number > 0),
-  storage_path text not null,
-  size_bytes integer not null check (size_bytes > 0),
-  checksum text not null,
-  created_at timestamptz not null default now(),
-  unique (session_id, part_number)
-);
-
-create table if not exists public.source_ingestion_jobs (
-  id uuid primary key default gen_random_uuid(),
-  session_id uuid not null references public.source_upload_sessions(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
-  status text not null default 'queued'
-    check (status in ('queued', 'processing', 'completed', 'failed')),
-  attempts integer not null default 0 check (attempts >= 0),
-  max_attempts integer not null default 3 check (max_attempts > 0),
-  next_retry_at timestamptz not null default now(),
-  started_at timestamptz,
-  completed_at timestamptz,
-  error text,
-  source_metadata jsonb,
-  created_at timestamptz not null default now(),
-  unique (session_id)
-);
-
 create table if not exists public.server_usage_counters (
   id uuid primary key default gen_random_uuid(),
   subject_key text not null,
@@ -215,18 +171,6 @@ create table if not exists public.server_usage_counters (
   updated_at timestamptz not null default now(),
   unique (subject_key, action, window_start)
 );
-
-create index if not exists source_upload_sessions_user_status_idx
-  on public.source_upload_sessions (user_id, status, updated_at desc);
-
-create index if not exists source_upload_parts_session_idx
-  on public.source_upload_parts (session_id, part_number);
-
-create index if not exists source_ingestion_jobs_status_retry_idx
-  on public.source_ingestion_jobs (status, next_retry_at, created_at);
-
-create index if not exists source_ingestion_jobs_user_status_idx
-  on public.source_ingestion_jobs (user_id, status, created_at desc);
 
 create index if not exists server_usage_counters_lookup_idx
   on public.server_usage_counters (subject_key, action, window_start);
@@ -280,90 +224,7 @@ begin
 end;
 $$;
 
-alter table public.source_upload_sessions enable row level security;
-alter table public.source_upload_parts enable row level security;
-alter table public.source_ingestion_jobs enable row level security;
 alter table public.server_usage_counters enable row level security;
-
-create policy "Users can read their own upload sessions"
-  on public.source_upload_sessions
-  for select
-  using (auth.uid() = user_id);
-
-create policy "Users can create their own upload sessions"
-  on public.source_upload_sessions
-  for insert
-  with check (auth.uid() = user_id);
-
-create policy "Users can update their own upload sessions"
-  on public.source_upload_sessions
-  for update
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
-
-create policy "Users can read their own upload parts"
-  on public.source_upload_parts
-  for select
-  using (auth.uid() = user_id);
-
-create policy "Users can create their own upload parts"
-  on public.source_upload_parts
-  for insert
-  with check (
-    auth.uid() = user_id
-    and exists (
-      select 1
-      from public.source_upload_sessions
-      where source_upload_sessions.id = source_upload_parts.session_id
-        and source_upload_sessions.user_id = auth.uid()
-    )
-  );
-
-create policy "Users can update their own upload parts"
-  on public.source_upload_parts
-  for update
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
-
-create policy "Users can read their own ingestion jobs"
-  on public.source_ingestion_jobs
-  for select
-  using (auth.uid() = user_id);
-
-create policy "Users can create their own ingestion jobs"
-  on public.source_ingestion_jobs
-  for insert
-  with check (
-    auth.uid() = user_id
-    and exists (
-      select 1
-      from public.source_upload_sessions
-      where source_upload_sessions.id = source_ingestion_jobs.session_id
-        and source_upload_sessions.user_id = auth.uid()
-    )
-  );
-
-create policy "Users can update their own ingestion jobs"
-  on public.source_ingestion_jobs
-  for update
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
-
-insert into storage.buckets (id, name, public)
-values ('source-upload-parts', 'source-upload-parts', false)
-on conflict (id) do nothing;
-
-create policy "Users can manage their own source upload parts"
-  on storage.objects
-  for all
-  using (
-    bucket_id = 'source-upload-parts'
-    and (storage.foldername(name))[1] = auth.uid()::text
-  )
-  with check (
-    bucket_id = 'source-upload-parts'
-    and (storage.foldername(name))[1] = auth.uid()::text
-  );
 
 create or replace function public.match_documents(
   query_embedding vector(1536),
@@ -441,6 +302,3 @@ grant select, insert, update, delete on public.documents to authenticated;
 grant select, insert, update, delete on public.integrations to authenticated;
 grant select, insert, update, delete on public.threads to authenticated;
 grant select, insert, update, delete on public.messages to authenticated;
-grant select, insert, update on public.source_upload_sessions to authenticated;
-grant select, insert, update on public.source_upload_parts to authenticated;
-grant select, insert, update on public.source_ingestion_jobs to authenticated;

@@ -1,8 +1,4 @@
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
-export const UPLOAD_PART_BYTES = 1024 * 1024;
-export const UPLOAD_STORAGE_BUCKET = "source-upload-parts";
-export const MAX_INGESTION_ATTEMPTS = 3;
-export const INGESTION_BATCH_SIZE = 2;
 
 export const SUPPORTED_UPLOAD_EXTENSIONS = [
   "pdf",

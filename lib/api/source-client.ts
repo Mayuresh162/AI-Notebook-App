@@ -8,8 +8,6 @@ import {
   readJsonResponse,
 } from "@/lib/api/fetch-client";
 
-export const UPLOAD_STATUS_POLL_MS = 3_000;
-
 export type SourceMetadata = {
   source?: string;
   name?: string;
@@ -62,85 +60,21 @@ export async function removeSourceByName(
 export async function uploadSourceFile(
   file: File,
   config: AuthorizedRequestConfig,
-  onProgress?: (progress: number) => void,
 ) {
   const headers = getAuthHeaders(config);
-  headers.set("Content-Type", "application/json");
+  const formData = new FormData();
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  const endpoint = extension === "pdf" ? "/api/upload" : "/api/filesystem";
 
-  const sessionRes = await fetch("/api/uploads", {
+  formData.append("file", file);
+
+  const res = await fetch(endpoint, {
     method: "POST",
     headers,
-    body: JSON.stringify({
-      filename: file.name,
-      mimeType: file.type || "application/octet-stream",
-      sizeBytes: file.size,
-    }),
+    body: formData,
   });
 
-  const sessionData = await readJsonResponse<{
-    session: {
-      id: string;
-      part_count: number;
-    };
-    partSize: number;
-  }>(sessionRes);
-  const uploadHeaders = getAuthHeaders(config);
-  let uploadedParts = 0;
-
-  for (let start = 0; start < file.size; start += sessionData.partSize) {
-    const partNumber = Math.floor(start / sessionData.partSize) + 1;
-    const chunk = file.slice(start, start + sessionData.partSize);
-    const partHeaders = new Headers(uploadHeaders);
-
-    partHeaders.set("x-upload-part-number", String(partNumber));
-
-    const partRes = await fetch(
-      `/api/uploads/${sessionData.session.id}/parts`,
-      {
-        method: "POST",
-        headers: partHeaders,
-        body: chunk,
-      },
-    );
-
-    await readJsonResponse(partRes);
-    uploadedParts += 1;
-    onProgress?.(
-      Math.round((uploadedParts / sessionData.session.part_count) * 100),
-    );
-  }
-
-  const completeRes = await fetch(
-    `/api/uploads/${sessionData.session.id}/complete`,
-    {
-      method: "POST",
-      headers: uploadHeaders,
-    },
-  );
-
-  await readJsonResponse(completeRes);
-
-  return {
-    sessionId: sessionData.session.id,
-  };
-}
-
-export async function fetchUploadIngestionStatus(
-  sessionId: string,
-  config: AuthorizedRequestConfig,
-) {
-  const headers = getAuthHeaders(config);
-
-  const res = await fetch(`/api/uploads/${sessionId}`, {
-    headers,
-  });
-  const data = await readJsonResponse<{
-    session: {
-      status: string;
-    };
-  }>(res);
-
-  return data.session.status;
+  await readJsonResponse(res);
 }
 
 export async function ingestSourceUrl(

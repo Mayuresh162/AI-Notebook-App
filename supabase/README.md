@@ -7,10 +7,9 @@ Before production launch:
 
 - Confirm `vector` and `pgcrypto` extensions are enabled.
 - Confirm `documents.embedding` dimensions match `OPENAI_EMBEDDING_MODEL`.
-- Confirm `source-upload-parts` storage bucket is private.
 - Confirm `consume_usage_limit`, `match_documents`, and
   `delete_documents_by_names` execute only through the server service role.
 - Confirm RLS blocks cross-user reads/writes for documents, integrations,
-  threads, messages, upload sessions, upload parts, and ingestion jobs.
+  threads, and messages.
 - Use separate Supabase projects for local/staging/production where possible,
   and set `DATA_ENV` explicitly in each environment.

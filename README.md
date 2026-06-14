@@ -9,8 +9,7 @@ An AI-powered research assistant that lets you chat with your own data - includi
 ### 📚 Multi-Source Ingestion
 
 * 📄 Upload PDFs and multiple file types (txt, md, csv, json, code, zip)
-* 📦 Multipart uploads with a 10 MB hard cap
-* 🧾 Background ingestion jobs with retry/status tracking
+* 📦 Direct upload processing with a 10 MB hard cap
 * 🌐 Add web URLs and parse articles
 * 🎥 Add YouTube videos and process transcripts
 * 💻 Ingest GitHub repositories
@@ -114,7 +113,6 @@ architecture changes to client-side encryption without server-side search.
 
 * Next.js API Routes
 * Supabase (Postgres + pgvector + Auth)
-* Supabase Storage for temporary private upload parts
 
 ### Quality
 
@@ -140,19 +138,16 @@ flowchart TD
   State["React Query<br/>client API helpers"]
   Routes["Next API routes"]
   Guards["Auth, CSRF, rate limits,<br/>input/file/URL validation"]
-  Upload["Multipart upload<br/>private Supabase Storage"]
-  Jobs["Ingestion jobs<br/>retry + background processor"]
-  Ingest["Extract, chunk,<br/>embed source text"]
+  Upload["Direct upload processing<br/>10 MB cap"]
+  Ingest["Validate, extract, chunk,<br/>embed source text"]
   Chat["Chat orchestration<br/>retrieval + ranking"]
   Stream["SSE response stream"]
   DB["Supabase Postgres<br/>documents, threads, messages,<br/>integrations, usage counters"]
-  Storage["Supabase Storage<br/>temporary upload parts"]
   Providers["OpenAI/Groq/Ollama<br/>embeddings + LLM"]
   Integrations["Google Drive / Notion / GitHub / YouTube"]
 
   Browser --> State --> Routes --> Guards
-  Guards --> Upload --> Storage
-  Upload --> Jobs --> Ingest --> Providers
+  Guards --> Upload --> Ingest --> Providers
   Ingest --> DB
   Guards --> Chat --> DB
   Chat --> Providers
@@ -198,7 +193,6 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_key
 DATA_ENV=local
 OAUTH_STATE_SECRET=your_random_secret
 INTEGRATION_TOKEN_ENCRYPTION_KEY=your_32_byte_or_longer_secret
-INGESTION_CRON_SECRET=your_random_cron_secret
 APP_URL=http://localhost:3000
 
 # Integration OAuth
@@ -243,10 +237,9 @@ The schema includes:
 
 * `documents` and `integrations`
 * `threads` and `messages`
-* `source_upload_sessions`, `source_upload_parts`, and `source_ingestion_jobs`
 * `server_usage_counters`
 * `match_documents`, `delete_documents_by_names`, and `consume_usage_limit`
-* RLS policies, indexes, grants, and private `source-upload-parts` storage setup
+* RLS policies, indexes, and grants
 
 👉 Ensure embedding dimensions match your model. The default `text-embedding-3-small` uses 1536 dimensions.
 
@@ -335,11 +328,9 @@ GitHub Actions handles quality checks. Vercel remains responsible for deployment
 * Use OpenAI / Groq in production
 * Ensure embedding model consistency
 * Set `DATA_ENV` explicitly for every environment before ingesting sources
-* Supabase cron or another trusted scheduler should call `/api/ingestion/process`
-  with `INGESTION_CRON_SECRET` for background upload indexing
 * Keep `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_SERVICE_KEY`, `OPENAI_API_KEY`,
   `GROQ_API_KEY`, Google Drive and Notion OAuth secrets,
-  `INTEGRATION_TOKEN_ENCRYPTION_KEY`, and `INGESTION_CRON_SECRET` server-side only
+  and `INTEGRATION_TOKEN_ENCRYPTION_KEY` server-side only
 * Add a privacy policy before collecting real user data
 
 ---
@@ -348,11 +339,10 @@ GitHub Actions handles quality checks. Vercel remains responsible for deployment
 
 Before deploying publicly:
 
-* Confirm Supabase Row Level Security policies isolate documents, integrations, threads, messages, upload sessions, upload parts, and ingestion jobs by `user_id`
+* Confirm Supabase Row Level Security policies isolate documents, integrations, threads, and messages by `user_id`
 * Confirm production environment variables are configured in Vercel and no `.env*` files are committed
 * Review OAuth redirect URLs for the exact production domain
 * Enable Google and GitHub providers in Supabase Auth before testing SSO
-* Confirm upload storage buckets remain private and signed URLs are only created after ownership checks
 * Run `npm run lint`, `npx tsc --noEmit`, `npm run test:coverage -- --runInBand`, and `npm run build`
 * Test upload, URL, YouTube, GitHub, Notion, Google Drive, and chat routes while signed out and signed in
 * Review API logs to ensure secrets, tokens, document content, and user data are not logged

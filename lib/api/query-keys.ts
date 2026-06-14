@@ -3,5 +3,4 @@ export const queryKeys = {
   sources: ["sources"] as const,
   threadMessages: (threadId: string | null) =>
     ["thread-messages", threadId] as const,
-  uploadStatus: (sessionId: string) => ["upload-status", sessionId] as const,
 };
