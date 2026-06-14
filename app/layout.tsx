@@ -25,6 +25,9 @@ export const metadata: Metadata = {
   description: "Chat with your uploaded documents, links, and integrations.",
   applicationName: "AI Notebook",
   metadataBase: process.env.APP_URL ? new URL(process.env.APP_URL) : undefined,
+  alternates: {
+    canonical: "/",
+  },
   robots: {
     index: false,
     follow: false,
@@ -55,7 +58,7 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={defaultLocale}>
+    <html lang={defaultLocale} suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
