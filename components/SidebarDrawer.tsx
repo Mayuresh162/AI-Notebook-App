@@ -43,7 +43,7 @@ export default function SidebarDrawer({
         <div className="fixed inset-0 z-[100] md:hidden">
           {/* dark backdrop */}
           <div
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            className="absolute inset-0 z-0 bg-black/35 backdrop-blur-sm dark:bg-black/70"
             onClick={() => setOpen(false)}
           />
 
@@ -53,9 +53,9 @@ export default function SidebarDrawer({
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -40, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="absolute left-0 top-0 h-full w-[86%] max-w-[320px] bg-[#111111] shadow-2xl border-r border-white/10 overflow-y-auto"
+            className="absolute left-0 top-0 z-10 h-full w-[86%] max-w-[320px] bg-card text-foreground shadow-2xl border-r overflow-y-auto"
           >
-            <div className="h-14 flex items-center justify-between px-4 border-b border-white/10">
+            <div className="h-14 flex items-center justify-between px-4 border-b">
               <span className="font-medium">{app("name")}</span>
 
               <button aria-label={t("close")} onClick={() => setOpen(false)}>

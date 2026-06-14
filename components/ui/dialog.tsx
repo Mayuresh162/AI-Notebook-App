@@ -57,13 +57,13 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl border border-white/10 bg-[#111111] p-5 text-white shadow-xl outline-none",
+          "fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl border bg-card p-5 text-foreground shadow-xl outline-none",
           className,
         )}
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 cursor-pointer rounded-sm text-zinc-500 opacity-80 transition hover:text-white focus:outline-none focus:ring-2 focus:ring-white/20">
+        <DialogPrimitive.Close className="absolute right-4 top-4 cursor-pointer rounded-sm text-muted-foreground opacity-80 transition hover:text-foreground focus:outline-none focus:ring-2 focus:ring-white/20">
           <X className="size-4" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
@@ -112,7 +112,7 @@ function DialogDescription({
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn("text-sm text-zinc-500", className)}
+      className={cn("text-sm text-muted-foreground", className)}
       {...props}
     />
   )

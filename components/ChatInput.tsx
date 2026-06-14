@@ -32,7 +32,7 @@ function ChatInputComponent({
   }, [ask, disabled, loading, question]);
 
   return (
-    <div className="md:static fixed bottom-0 left-0 right-0 z-40 border-t border-white/5 bg-[#0a0a0a]/95 backdrop-blur-xl p-3 md:p-4 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]">
+    <div className="md:static fixed bottom-0 left-0 right-0 z-40 border-t bg-background/95 backdrop-blur-xl p-3 md:p-4 shadow-[0_-8px_30px_rgba(0,0,0,0.12)]">
       <div className="max-w-4xl mx-auto flex items-center gap-3">
 
         <Input
@@ -50,11 +50,11 @@ function ChatInputComponent({
           className="
             h-12 md:h-13 flex-1
             rounded-2xl
-            border border-white/10
-            bg-[#151515]
+            border
+            bg-muted
             px-4
-            text-sm text-white
-            placeholder:text-zinc-500
+            text-sm
+            placeholder:text-muted-foreground
             focus-visible:ring-1
             focus-visible:ring-white/20
           "
@@ -67,8 +67,6 @@ function ChatInputComponent({
           className="
             h-12 w-12 shrink-0
             rounded-2xl
-            bg-white text-black
-            hover:bg-zinc-200
             active:scale-95
             transition-all
             disabled:opacity-50

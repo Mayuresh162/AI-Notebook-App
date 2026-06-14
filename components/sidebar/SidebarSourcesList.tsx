@@ -35,16 +35,16 @@ function SidebarSourcesListComponent({
   return (
     <div className="mt-7">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+        <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
           {t("heading")}
         </h2>
 
-        <span className="text-xs text-zinc-600">{sources.length}</span>
+        <span className="text-xs text-muted-foreground">{sources.length}</span>
       </div>
 
       <div className="space-y-2">
         {sources.length === 0 ? (
-          <div className="rounded-xl border border-white/5 bg-[#151515] px-3 py-4 text-sm text-zinc-500">
+          <div className="rounded-xl border bg-muted px-3 py-4 text-sm text-muted-foreground">
             {t("empty")}
           </div>
         ) : (
@@ -61,8 +61,8 @@ function SidebarSourcesListComponent({
                 className={cn(
                   "group flex items-center gap-2 rounded-xl border px-3 py-2 transition",
                   selected
-                    ? "border-white/20 bg-white/[0.07]"
-                    : "border-white/5 bg-[#151515]",
+                    ? "border-foreground/20 bg-muted"
+                    : "border-border bg-card",
                 )}
               >
                 <button
@@ -76,8 +76,8 @@ function SidebarSourcesListComponent({
                   className={cn(
                     "flex size-4 shrink-0 cursor-pointer items-center justify-center rounded border transition",
                     selected
-                      ? "border-white bg-white text-black"
-                      : "border-zinc-700 bg-transparent text-transparent hover:border-zinc-400",
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-transparent text-transparent hover:border-foreground/40",
                   )}
                 >
                   <Check size={12} strokeWidth={3} />
@@ -88,7 +88,7 @@ function SidebarSourcesListComponent({
                 <div className="flex-1 min-w-0">
                   <p className="truncate text-sm">{label}</p>
 
-                  <p className="text-[10px] uppercase tracking-wider text-zinc-500 mt-0.5">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">
                     {source || t("generic")}
                   </p>
                 </div>
@@ -97,7 +97,7 @@ function SidebarSourcesListComponent({
                   type="button"
                   aria-label={t("remove", { name: label })}
                   onClick={() => onRemoveSource(sourceMetadata)}
-                  className="cursor-pointer text-zinc-600 opacity-0 group-hover:opacity-100 hover:text-white transition"
+                  className="cursor-pointer text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground transition"
                 >
                   <CircleX size={16} />
                 </button>

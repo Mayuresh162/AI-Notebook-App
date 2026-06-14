@@ -19,6 +19,7 @@
   "sidebar": {
     "title": "Notebook",
     "subtitle": "Chat with your sources",
+    "settings": "Settings",
     "logout": "Sign out",
     "quickActions": {
       "addFile": "Add Source File",
@@ -26,6 +27,8 @@
       "addUrl": "URL",
       "pasteText": "Text",
       "newChat": "New Chat",
+      "clearChats": "Clear Chats",
+      "confirmClearChats": "Confirm Clear Chats",
       "dropzone": "Drop a source file to upload"
     },
     "threads": {
@@ -48,6 +51,11 @@
       "notion": "Notion",
       "sync": "Sync Connected Apps"
     }
+  },
+  "userMenu": {
+    "open": "Open user menu",
+    "settings": "Settings",
+    "logout": "Sign out"
   },
   "sourceDialog": {
     "title": "Add source",
@@ -89,10 +97,6 @@
     "signInAgainBeforeUpload": "Please sign in again before uploading.",
     "checkingSession": "Checking session...",
     "uploadingFile": "Uploading file... {progress}%",
-    "queuedForIndexing": "Queued for indexing",
-    "queuedDescription": "Your source will appear after background processing.",
-    "indexingFailed": "Indexing failed",
-    "indexingFailedDescription": "Please try uploading the source again.",
     "uploadFailed": "Upload failed",
     "uploadSuccessful": "Upload successful",
     "youtubeIndexed": "YouTube video indexed successfully",

@@ -18,16 +18,16 @@ function SidebarThreadsListComponent({
   return (
     <div className="mt-7">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+        <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
           {t("heading")}
         </h2>
 
-        <span className="text-xs text-zinc-600">{threads.length}/5</span>
+        <span className="text-xs text-muted-foreground">{threads.length}/5</span>
       </div>
 
       <div className="space-y-2">
         {threads.length === 0 ? (
-          <div className="rounded-xl border border-white/5 bg-[#151515] px-3 py-4 text-sm text-zinc-500">
+          <div className="rounded-xl border bg-muted px-3 py-4 text-sm text-muted-foreground">
             {t("empty")}
           </div>
         ) : (
@@ -42,8 +42,8 @@ function SidebarThreadsListComponent({
                 onClick={() => onSelectThread(thread.id)}
                 className={`w-full rounded-xl border px-3 py-2 text-left transition ${
                   active
-                    ? "border-white/20 bg-white/10 text-white"
-                    : "border-white/5 bg-[#151515] text-zinc-300 hover:bg-[#1d1d1d]"
+                    ? "border-foreground/20 bg-muted text-foreground"
+                    : "border-border bg-card text-muted-foreground hover:bg-muted"
                 }`}
               >
                 <p className="truncate text-sm">{thread.title}</p>

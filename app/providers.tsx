@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { getSupabaseClient } from "@/lib/supabase-client";
 import { useRouter } from "next/navigation";
+import { ThemeProvider } from "next-themes";
 
 export default function Providers({
   children,
@@ -37,6 +38,13 @@ export default function Providers({
   }, [router, supabase.auth]);
 
   return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="dark"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    </ThemeProvider>
   );
 }

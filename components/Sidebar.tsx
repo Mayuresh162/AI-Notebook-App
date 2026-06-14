@@ -6,27 +6,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
-  connectGoogleDrive,
-  connectNotion,
   fetchSourceList,
-  fetchUploadIngestionStatus,
   getSourceKey,
   getSourceName,
   ingestSourceText,
   ingestSourceUrl,
   isUnauthorizedApiError,
   removeSourceByName,
-  syncConnectedSources,
-  UPLOAD_STATUS_POLL_MS,
   uploadSourceFile,
   type SourceMetadata,
 } from "@/lib/api/source-client";
 import {
   getAuthorizedRequestConfig,
-  signOutAndRedirect,
 } from "@/lib/api/auth-client";
 import { SidebarHeader } from "@/components/sidebar/SidebarHeader";
-import { SidebarIntegrations } from "@/components/sidebar/SidebarIntegrations";
 import { SidebarQuickActions } from "@/components/sidebar/SidebarQuickActions";
 import { SidebarSourcesList } from "@/components/sidebar/SidebarSourcesList";
 import { SidebarThreadsList } from "@/components/sidebar/SidebarThreadsList";
@@ -50,8 +43,10 @@ type SidebarProps = {
   creatingThread: boolean;
   selectedSources: string[];
   onCreateThread: () => void;
+  onClearChats: () => void;
   onSelectThread: (threadId: string) => void;
   onSelectedSourcesChange: (sourceKeys: string[]) => void;
+  clearingChats?: boolean;
 };
 
 function Sidebar({
@@ -60,13 +55,14 @@ function Sidebar({
   creatingThread,
   selectedSources,
   onCreateThread,
+  onClearChats,
   onSelectThread,
   onSelectedSourcesChange,
+  clearingChats,
 }: SidebarProps) {
   const t = useTranslations("toast");
   const quickActions = useTranslations("sidebar.quickActions");
   const [dragActive, setDragActive] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
   const [sourceDialogMode, setSourceDialogMode] = useState<"link" | "text">(
     "link",
@@ -95,18 +91,6 @@ function Sidebar({
       };
     },
   });
-  const syncSourcesMutation = useMutation({
-    mutationFn: async () => {
-      const config = await getAuthorizedRequestConfig();
-
-      if (!config) {
-        throw new Error("Please sign in again.");
-      }
-
-      await syncConnectedSources(config);
-    },
-  });
-
   const handleClick = useCallback(() => {
     fileRef.current?.click();
   }, []);
@@ -127,26 +111,6 @@ function Sidebar({
     await queryClient.invalidateQueries({
       queryKey: queryKeys.sources,
     });
-  }, [queryClient]);
-
-  const pollUploadStatus = useCallback(async (
-    sessionId: string,
-    config: Awaited<ReturnType<typeof getAuthorizedRequestConfig>>,
-  ) => {
-    if (!config) return "queued";
-
-    for (let attempt = 0; attempt < 10; attempt += 1) {
-      await new Promise((resolve) => setTimeout(resolve, UPLOAD_STATUS_POLL_MS));
-
-      const status = await queryClient.fetchQuery({
-        queryKey: queryKeys.uploadStatus(sessionId),
-        queryFn: () => fetchUploadIngestionStatus(sessionId, config),
-      });
-
-      if (status === "completed" || status === "failed") return status;
-    }
-
-    return "queued";
   }, [queryClient]);
 
   const handleRemoveSource = useCallback(async (s: SourceMetadata) => {
@@ -180,27 +144,15 @@ function Sidebar({
         return;
       }
 
-      toast.loading(t("uploadingFile", { progress: 0 }), { id: loading });
+      toast.loading(t("processingContent"), { id: loading });
 
-      const upload = await uploadSourceFile(file, config, (progress) => {
-        toast.loading(t("uploadingFile", { progress }), { id: loading });
-      });
+      await uploadSourceFile(file, config);
 
-      toast.success(t("queuedForIndexing"), {
-        description: t("queuedDescription"),
+      await refreshSources();
+      toast.success(t("uploadSuccessful"), {
         id: loading,
       });
       onSuccessUpload();
-
-      void pollUploadStatus(upload.sessionId, config).then((status) => {
-        if (status === "completed") {
-          void refreshSources();
-        } else if (status === "failed") {
-          toast.error(t("indexingFailed"), {
-            description: t("indexingFailedDescription"),
-          });
-        }
-      });
     } catch (error) {
       const description =
         isUnauthorizedApiError(error)
@@ -212,7 +164,7 @@ function Sidebar({
         id: loading,
       });
     }
-  }, [onSuccessUpload, pollUploadStatus, refreshSources, t]);
+  }, [onSuccessUpload, refreshSources, t]);
 
   const uploadSource = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -297,26 +249,6 @@ function Sidebar({
     }
   }, [onSuccessUpload, refreshSources, t]);
 
-  const logout = useCallback(async () => {
-    await signOutAndRedirect();
-  }, []);
-
-  const handleSync = useCallback(async () => {
-    const id = toast.loading(t("syncingSources"));
-
-    try {
-      setSyncing(true);
-      await syncSourcesMutation.mutateAsync();
-
-      toast.success(t("sourcesSynced"), { id });
-      await refreshSources();
-    } catch {
-      toast.error(t("syncFailed"), { id });
-    } finally {
-      setSyncing(false);
-    }
-  }, [refreshSources, syncSourcesMutation, t]);
-
   useEffect(() => {
     const sourceKeys = new Set(sources.map(getSourceKey));
     const nextSelectedSources = selectedSources.filter((sourceKey) =>
@@ -329,8 +261,8 @@ function Sidebar({
   }, [sources, selectedSources, onSelectedSourcesChange]);
 
   return (
-    <div className="w-full md:w-[300px] h-full bg-[#111111] flex flex-col border-r border-white/5">
-      <SidebarHeader onLogout={logout} />
+    <div className="w-full md:w-[300px] h-full bg-card flex flex-col border-r">
+      <SidebarHeader />
 
       {/* BODY */}
       <div className="flex-1 overflow-y-auto px-5 py-5">
@@ -343,7 +275,9 @@ function Sidebar({
           onDrop={handleDrop}
           onPasteText={() => openSourceDialog("text")}
           onNewChat={onCreateThread}
+          onClearChats={onClearChats}
           newChatDisabled={creatingThread}
+          clearChatsDisabled={clearingChats || threads.length === 0}
         />
 
         <SidebarThreadsList
@@ -357,13 +291,6 @@ function Sidebar({
           selectedSources={selectedSources}
           onRemoveSource={handleRemoveSource}
           onToggleSource={toggleSelectedSource}
-        />
-
-        <SidebarIntegrations
-          syncing={syncing}
-          onConnectGoogle={connectGoogleDrive}
-          onConnectNotion={connectNotion}
-          onSync={handleSync}
         />
       </div>
 
