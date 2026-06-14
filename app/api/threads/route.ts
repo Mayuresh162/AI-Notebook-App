@@ -79,3 +79,27 @@ export async function POST(req: Request) {
     thread: data,
   });
 }
+
+export async function DELETE() {
+  const csrf = await enforceSameOriginRequest();
+
+  if (csrf.error) return csrf.error;
+
+  const auth = await requireUser();
+
+  if (auth.error) return auth.error;
+
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase
+    .from("threads")
+    .delete()
+    .eq("user_id", auth.user.id);
+
+  if (error) {
+    return jsonError(error.message, 500);
+  }
+
+  return Response.json({
+    success: true,
+  });
+}

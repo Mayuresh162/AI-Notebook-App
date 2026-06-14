@@ -35,3 +35,17 @@ if (!globalThis.fetch) {
     fetch: jest.fn(),
   });
 }
+
+if (!globalThis.ResizeObserver) {
+  Object.assign(globalThis, {
+    ResizeObserver: class TestResizeObserver {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  });
+}
+
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = jest.fn();
+}

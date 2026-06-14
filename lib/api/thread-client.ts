@@ -50,6 +50,14 @@ export async function createThread(
   return res.thread;
 }
 
+export async function clearThreads(config: AuthorizedRequestConfig) {
+  const res = await apiJsonRequest<{ success: boolean }>("/api/threads", config, {
+    method: "DELETE",
+  });
+
+  return Boolean(res.success);
+}
+
 export async function fetchThreadMessages(
   config: AuthorizedRequestConfig,
   threadId: string,

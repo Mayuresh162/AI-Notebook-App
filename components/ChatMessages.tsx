@@ -82,6 +82,10 @@ function ChatMessagesComponent({
     scrollTop: 0,
     height: 0,
   });
+  const safeMessages = useMemo(
+    () => messages.filter((message): message is Message => Boolean(message)),
+    [messages],
+  );
 
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current;
@@ -119,8 +123,8 @@ function ChatMessagesComponent({
   }, [scrollContainerRef]);
 
   const messageKeys = useMemo(
-    () => messages.map((message, index) => message.id || `message-${index}`),
-    [messages],
+    () => safeMessages.map((message, index) => message.id || `message-${index}`),
+    [safeMessages],
   );
 
   const setRowRef = useCallback(
@@ -149,16 +153,16 @@ function ChatMessagesComponent({
   const visibleRange = useMemo(
     () =>
       getVisibleRange(
-        messages.length,
+        safeMessages.length,
         viewport.scrollTop,
         viewport.height,
         measuredHeights,
         messageKeys,
       ),
-    [measuredHeights, messageKeys, messages.length, viewport],
+    [measuredHeights, messageKeys, safeMessages.length, viewport],
   );
 
-  const visibleMessages = messages.slice(visibleRange.start, visibleRange.end);
+  const visibleMessages = safeMessages.slice(visibleRange.start, visibleRange.end);
   const topSpacer = getSpacerHeight(
     0,
     visibleRange.start,
@@ -167,7 +171,7 @@ function ChatMessagesComponent({
   );
   const bottomSpacer = getSpacerHeight(
     visibleRange.end,
-    messages.length,
+    safeMessages.length,
     measuredHeights,
     messageKeys,
   );
@@ -179,7 +183,7 @@ function ChatMessagesComponent({
       {visibleMessages.map((m, visibleIndex) => {
         const i = visibleRange.start + visibleIndex;
         const isUser = m.role === "user";
-        const isLast = i === messages.length - 1;
+        const isLast = i === safeMessages.length - 1;
 
         return (
           <div
@@ -197,8 +201,8 @@ function ChatMessagesComponent({
 
                 ${
                   isUser
-                    ? "ml-auto bg-white text-black border-white"
-                    : "bg-[#171717] text-white border-white/5"
+                    ? "ml-auto bg-primary text-primary-foreground border-transparent"
+                    : "bg-muted text-foreground border-transparent"
                 }
               `}
             >
@@ -227,12 +231,12 @@ function ChatMessagesComponent({
               </div>
 
               {!isUser && m.sources && m.sources?.length > 0 && (
-                <div className="mt-4 pt-3 border-t border-white/5 text-xs text-zinc-400 space-y-2">
+                <div className="mt-4 pt-3 border-t text-xs text-muted-foreground space-y-2">
                   {m.sources.map(
                     (s, i) => (
                       <div
                         key={i}
-                        className="flex items-center gap-2 rounded-xl bg-white/5 px-2 py-1"
+                        className="flex items-center gap-2 rounded-xl bg-card px-2 py-1"
                       >
                         <span>[{i + 1}]</span>
                         <span className="truncate">

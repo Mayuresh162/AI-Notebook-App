@@ -9,6 +9,7 @@ import SidebarDrawer from "@/components/SidebarDrawer";
 import UserMenu from "@/components/UserMenu";
 import { getAuthorizedRequestConfig } from "@/lib/api/auth-client";
 import {
+  clearThreads,
   createThread,
   fetchThreads,
   type Thread,
@@ -19,6 +20,7 @@ export default function AppShell() {
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [creatingThread, setCreatingThread] = useState(false);
+  const [clearingChats, setClearingChats] = useState(false);
   const queryClient = useQueryClient();
   const { data: threads = [] } = useQuery({
     queryKey: queryKeys.threads,
@@ -46,6 +48,17 @@ export default function AppShell() {
         ...current,
       ]);
       setActiveThreadId(thread.id);
+    },
+  });
+  const clearThreadsMutation = useMutation({
+    mutationFn: async () => {
+      const config = await getAuthorizedRequestConfig();
+
+      if (!config) {
+        throw new Error("Please sign in again.");
+      }
+
+      return clearThreads(config);
     },
   });
 
@@ -80,6 +93,36 @@ export default function AppShell() {
     }
   }, [createThreadMutation]);
 
+  const handleClearChats = useCallback(async () => {
+    const loading = toast.loading("Clearing chats...");
+
+    try {
+      setClearingChats(true);
+      await clearThreadsMutation.mutateAsync();
+      queryClient.setQueryData<Thread[]>(queryKeys.threads, []);
+      setActiveThreadId(null);
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.threads,
+      });
+      toast.success("Chats cleared", { id: loading });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to clear chats";
+
+      toast.error(message, { id: loading });
+    } finally {
+      setClearingChats(false);
+    }
+  }, [clearThreadsMutation, queryClient]);
+
+  const ensureThread = useCallback(async () => {
+    if (activeThreadId) return activeThreadId;
+
+    const thread = await createThreadMutation.mutateAsync();
+
+    return thread.id;
+  }, [activeThreadId, createThreadMutation]);
+
   useEffect(() => {
     setActiveThreadId((current) => current || threads[0]?.id || null);
   }, [threads]);
@@ -91,20 +134,24 @@ export default function AppShell() {
       creatingThread={creatingThread}
       selectedSources={selectedSources}
       onCreateThread={handleCreateThread}
+      onClearChats={handleClearChats}
       onSelectThread={setActiveThreadId}
       onSelectedSourcesChange={setSelectedSources}
+      clearingChats={clearingChats}
     />
   ), [
     activeThreadId,
     creatingThread,
+    clearingChats,
+    handleClearChats,
     handleCreateThread,
     selectedSources,
     threads,
   ]);
 
   return (
-    <div className="h-screen bg-[#0a0a0a] overflow-hidden md:p-4">
-      <header className="h-14 border-b border-white/5 flex items-center justify-between px-4 md:hidden">
+    <div className="h-screen bg-background overflow-hidden md:p-4 flex flex-col">
+      <header className="h-14 shrink-0 border-b flex items-center justify-between px-4 md:hidden">
         <div className="flex items-center gap-3">
           <SidebarDrawer>{sidebar}</SidebarDrawer>
 
@@ -114,12 +161,13 @@ export default function AppShell() {
         <UserMenu />
       </header>
 
-      <div className="h-full flex overflow-hidden rounded-none md:rounded-3xl border border-white/5 bg-[#111111]">
+      <div className="flex min-h-0 flex-1 overflow-hidden rounded-none md:rounded-3xl border bg-card">
         <div className="hidden md:flex">{sidebar}</div>
 
         <ChatLayout
           activeThreadId={activeThreadId}
           selectedSources={selectedSources}
+          onEnsureThread={ensureThread}
           onThreadUpdated={loadThreads}
         />
       </div>

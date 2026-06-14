@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 
@@ -11,7 +11,9 @@ type SidebarQuickActionsProps = {
   onDrop: (event: React.DragEvent<HTMLDivElement>) => void;
   onPasteText: () => void;
   onNewChat: () => void;
+  onClearChats: () => void;
   newChatDisabled?: boolean;
+  clearChatsDisabled?: boolean;
 };
 
 function SidebarQuickActionsComponent({
@@ -23,9 +25,34 @@ function SidebarQuickActionsComponent({
   onDrop,
   onPasteText,
   onNewChat,
+  onClearChats,
   newChatDisabled,
+  clearChatsDisabled,
 }: SidebarQuickActionsProps) {
   const t = useTranslations("sidebar.quickActions");
+  const [confirmingClear, setConfirmingClear] = useState(false);
+
+  useEffect(() => {
+    if (!confirmingClear) return;
+
+    const timeout = window.setTimeout(() => {
+      setConfirmingClear(false);
+    }, 5_000);
+
+    return () => window.clearTimeout(timeout);
+  }, [confirmingClear]);
+
+  function handleClearChats() {
+    if (clearChatsDisabled) return;
+
+    if (!confirmingClear) {
+      setConfirmingClear(true);
+      return;
+    }
+
+    setConfirmingClear(false);
+    onClearChats();
+  }
 
   return (
     <div className="space-y-2">
@@ -36,13 +63,14 @@ function SidebarQuickActionsComponent({
         onDrop={onDrop}
         className={`rounded-xl border border-dashed transition ${
           dragActive
-            ? "border-white bg-white/10"
-            : "border-white/10 bg-transparent"
+            ? "border-foreground bg-muted"
+            : "border-border bg-transparent"
         }`}
       >
         <Button
+          variant="outline"
           onClick={onAddFile}
-          className="w-full h-11 rounded-xl bg-white text-black hover:bg-zinc-200"
+          className="w-full h-11 rounded-xl"
         >
           📄 {t("addFile")}
         </Button>
@@ -52,7 +80,7 @@ function SidebarQuickActionsComponent({
         <Button
           variant="outline"
           onClick={onAddUrl}
-          className="h-10 rounded-xl bg-[#151515] border-white/10 hover:bg-[#1d1d1d]"
+          className="h-10 rounded-xl"
         >
           🔗 {t("addUrl")}
         </Button>
@@ -60,7 +88,7 @@ function SidebarQuickActionsComponent({
         <Button
           variant="outline"
           onClick={onPasteText}
-          className="h-10 rounded-xl bg-[#151515] border-white/10 hover:bg-[#1d1d1d]"
+          className="h-10 rounded-xl"
         >
           📝 {t("pasteText")}
         </Button>
@@ -70,9 +98,18 @@ function SidebarQuickActionsComponent({
         variant="outline"
         onClick={onNewChat}
         disabled={newChatDisabled}
-        className="w-full h-10 rounded-xl bg-[#151515] border-white/10 hover:bg-[#1d1d1d]"
+        className="w-full h-10 rounded-xl"
       >
         ✨ {t("newChat")}
+      </Button>
+
+      <Button
+        variant="outline"
+        onClick={handleClearChats}
+        disabled={clearChatsDisabled}
+        className="w-full h-10 rounded-xl text-red-500 hover:bg-red-500/10"
+      >
+        {confirmingClear ? t("confirmClearChats") : t("clearChats")}
       </Button>
     </div>
   );

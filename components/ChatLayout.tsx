@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import ChatMessages from "./ChatMessages";
 import ChatInput from "./ChatInput";
 import { getMemory } from "@/lib/tools/memory";
@@ -24,12 +24,14 @@ type Message = {
 type ChatLayoutProps = {
   activeThreadId: string | null;
   selectedSources?: string[];
+  onEnsureThread?: () => Promise<string | null>;
   onThreadUpdated?: () => void | Promise<void>;
 };
 
 export default function ChatLayout({
   activeThreadId,
   selectedSources = [],
+  onEnsureThread,
   onThreadUpdated,
 }: ChatLayoutProps) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -38,10 +40,12 @@ export default function ChatLayout({
   const [streamStatus, setStreamStatus] = useState<
     "idle" | "thinking" | "streaming" | "error"
   >("idle");
+  const streamingActive = streamStatus !== "idle";
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const loadOlderRef = useRef<() => void>(() => {});
-  const queryClient = useQueryClient();
+  const stickToBottomRef = useRef(true);
+  const syncedMessagesSignatureRef = useRef("");
   const selectedSourcesKey = useMemo(
     () => selectedSources.join("\u001f"),
     [selectedSources],
@@ -75,8 +79,7 @@ export default function ChatLayout({
       });
     },
   });
-  const { data: initialMessagesData, refetch: refetchInitialMessages } =
-    initialMessagesQuery;
+  const { data: initialMessagesData } = initialMessagesQuery;
 
   const mapThreadMessage = useCallback((message: ThreadMessage): Message => {
     return {
@@ -122,7 +125,14 @@ export default function ChatLayout({
   }, [activeThreadId, loadingOlder, mapThreadMessage, nextCursor]);
 
   const ask = useCallback(async (question: string) => {
-    if (!question || !activeThreadId) return;
+    if (!question) return;
+
+    const threadId = activeThreadId || await onEnsureThread?.();
+
+    if (!threadId) {
+      setStreamStatus("error");
+      return;
+    }
 
     const config = await getAuthorizedRequestConfig();
 
@@ -131,6 +141,7 @@ export default function ChatLayout({
       return;
     }
 
+    stickToBottomRef.current = true;
     setStreamStatus("thinking");
 
     setMessages((prev) => [
@@ -142,7 +153,6 @@ export default function ChatLayout({
       },
     ]);
 
-    let assistantIndex = 0;
     const assistantTempId = `assistant-${Date.now()}`;
     let fullText = "";
     let pendingText = "";
@@ -164,12 +174,18 @@ export default function ChatLayout({
       pendingText = "";
 
       setMessages((prev) => {
-        const updated = [...prev];
-        updated[assistantIndex] = {
-          ...updated[assistantIndex],
-          content: fullText,
-        };
-        return updated;
+        const assistantExists = prev.some((message) => message.id === assistantTempId);
+
+        if (!assistantExists) return prev;
+
+        return prev.map((message) =>
+          message.id === assistantTempId
+            ? {
+                ...message,
+                content: fullText,
+              }
+            : message,
+        );
       });
     };
 
@@ -193,7 +209,6 @@ export default function ChatLayout({
           content: "",
         },
       ];
-      assistantIndex = updated.length - 1;
       return updated;
     });
 
@@ -204,7 +219,7 @@ export default function ChatLayout({
       body: JSON.stringify({
         question,
         memory,
-        threadId: activeThreadId,
+        threadId,
         selectedSources: selectedSourcesPayload,
       }),
     });
@@ -226,14 +241,18 @@ export default function ChatLayout({
           assistantSources = event.sources as SanitizedSource[];
 
           setMessages((prev) => {
-            const updated = [...prev];
+            const assistantExists = prev.some((message) => message.id === assistantTempId);
 
-            updated[assistantIndex] = {
-              ...updated[assistantIndex],
-              sources: assistantSources,
-            };
+            if (!assistantExists) return prev;
 
-            return updated;
+            return prev.map((message) =>
+              message.id === assistantTempId
+                ? {
+                    ...message,
+                    sources: assistantSources,
+                  }
+                : message,
+            );
           });
         }
 
@@ -243,10 +262,6 @@ export default function ChatLayout({
       });
 
       flushPendingText();
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.threadMessages(activeThreadId),
-      });
-      await refetchInitialMessages();
       refreshThreadList();
       setStreamStatus("idle");
     } catch {
@@ -259,47 +274,66 @@ export default function ChatLayout({
 
   }, [
     activeThreadId,
+    onEnsureThread,
     onThreadUpdated,
-    queryClient,
-    refetchInitialMessages,
     selectedSourcesPayload,
   ]);
 
+  const latestMessage = messages.at(-1);
+  const hasMessages = messages.some(Boolean);
+  const scrollSignal = [
+    messages.length,
+    latestMessage?.id || "",
+    latestMessage?.content.length || 0,
+    latestMessage?.sources?.length || 0,
+  ].join(":");
+
   useEffect(() => {
+    if (!hasMessages && !streamingActive) return;
+
     const scrollContainer = scrollRef.current;
-    const nearBottom = scrollContainer
+    const shouldStick = scrollContainer
       ? scrollContainer.scrollHeight -
           scrollContainer.scrollTop -
           scrollContainer.clientHeight <
         180
       : true;
 
-    if (streamStatus === "idle" && !nearBottom) return;
+    if (!streamingActive && !shouldStick && !stickToBottomRef.current) return;
 
     requestAnimationFrame(() => {
       bottomRef.current?.scrollIntoView({
-        behavior: "smooth",
+        behavior: streamingActive ? "auto" : "smooth",
       });
     });
-  }, [messages.length, streamStatus]);
+  }, [hasMessages, scrollSignal, streamingActive]);
 
   useEffect(() => {
+    if (streamingActive) return;
+
     if (!activeThreadId) {
-      setMessages([]);
-      setNextCursor(null);
+      syncedMessagesSignatureRef.current = "";
+      setMessages((current) => (current.length > 0 ? [] : current));
+      setNextCursor((current) => (current ? null : current));
       return;
     }
 
-    setMessages([]);
-    setNextCursor(null);
-  }, [activeThreadId]);
-
-  useEffect(() => {
     if (!initialMessagesData) return;
 
+    const nextSignature = [
+      activeThreadId,
+      initialMessagesData.nextCursor || "",
+      initialMessagesData.messages.length,
+      initialMessagesData.messages[0]?.id || "",
+      initialMessagesData.messages.at(-1)?.id || "",
+    ].join(":");
+
+    if (syncedMessagesSignatureRef.current === nextSignature) return;
+
+    syncedMessagesSignatureRef.current = nextSignature;
     setMessages(initialMessagesData.messages.map(mapThreadMessage));
     setNextCursor(initialMessagesData.nextCursor);
-  }, [initialMessagesData, mapThreadMessage]);
+  }, [activeThreadId, initialMessagesData, mapThreadMessage, streamingActive]);
 
   useEffect(() => {
     loadOlderRef.current = () => {
@@ -315,6 +349,9 @@ export default function ChatLayout({
     const element = scrollContainer;
 
     function handleScroll() {
+      stickToBottomRef.current =
+        element.scrollHeight - element.scrollTop - element.clientHeight < 180;
+
       if (element.scrollTop < 120) {
         loadOlderRef.current();
       }
@@ -336,30 +373,38 @@ export default function ChatLayout({
   >
 
     {/* ONLY THIS SCROLLS */}
-    <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
-      <ChatMessages
-        messages={messages}
-        streamStatus={streamStatus}
-        scrollContainerRef={scrollRef}
-      />
-      {!activeThreadId && (
-        <div className="h-full flex items-center justify-center px-6 text-center text-sm text-zinc-500">
-          Create a chat to start.
+    <div
+      ref={scrollRef}
+      data-testid="chat-scroll-area"
+      className={`flex-1 min-h-0 ${hasMessages ? "overflow-y-auto" : "overflow-hidden"}`}
+    >
+      {hasMessages ? (
+        <>
+          <ChatMessages
+            messages={messages}
+            streamStatus={streamStatus}
+            scrollContainerRef={scrollRef}
+          />
+          <div ref={bottomRef} className="h-1" />
+        </>
+      ) : (
+        <div className="flex h-full items-center justify-center px-6 text-center text-sm text-muted-foreground">
+          {activeThreadId
+            ? "Ask a question to start this chat."
+            : "Create a chat to start."}
         </div>
       )}
-      <div ref={bottomRef} className="h-1" />
     </div>
 
     {/* Sticky Input */}
     <div className="shrink-0">
       <ChatInput
         ask={ask}
-        loading={streamStatus !== "idle"}
-        disabled={!activeThreadId}
+        loading={streamingActive}
         placeholder={
           activeThreadId
             ? "Ask anything about your sources..."
-            : "Create a chat to start..."
+            : "Ask anything to start a new chat..."
         }
       />
     </div>
